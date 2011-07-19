@@ -3,7 +3,7 @@
 from distutils.core import setup
 setup(name='netscaler-tools',
     version='1.0',
-    py_modules=['netscaler-tools'],
+    packages = find_packages(),
 
     author = "Brian Glogower",
     author_email = "bglogower@tagged.com",
