@@ -9,21 +9,6 @@ logging.basicConfig(level=logging.ERROR)
 logging.getLogger('suds.client').setLevel(logging.ERROR)
 logging.disable(logging.ERROR)
 
-# Debug is off by default
-debug = False
-
-# New of WSDL file
-#wsdl = 'NSConfig.wsdl'
-
-# Role user for running commands on nescaler. Password
-# will be fetched from file that lives locally on box.
-username = '***REMOVED***'
-passwdFile = 'passwd.txt'
-
-# Keeps track if the user is logged in or not.
-loggedIn = False
-
-
 def fetchPasswd(passwdFile):
     try:
         f = open(passwdFile,'r')
@@ -40,9 +25,7 @@ def fetchPasswd(passwdFile):
     return 0, passwd
 
 
-def client(netscaler,wsdl):
-
-    global loggedIn
+def connection(host,wsdl):
 
     wsdlUrl = "http://%s/api/%s" % (host,wsdl)
     soapUrl = "http://%s/soap" % (host)
@@ -51,16 +34,15 @@ def client(netscaler,wsdl):
     # suds.TypeNotFound: Type not found: '(Array, # http://schemas.xmlsoap.org/soap/encoding/, )
     _import = Import('http://schemas.xmlsoap.org/soap/encoding/')
     _import.filter.add("urn:NSConfig")
-    doctor = ImportDoctor(self._import)
+    doctor = ImportDoctor(_import)
 
-    client = Client(wsdlUrl, doctor=doctor, location=soapUrl, **kwargs)
-    loggedIn = False
+    client = Client(wsdlUrl, doctor=doctor, location=soapUrl)
 
     return client
     
 
-def login(username, passwd,client):
-    output = client.service.login(username=username, password=passwd)
+def login(client, user, passwd):
+    output = client.service.login(username=user, password=passwd)
     if output.rc != 0:
         return 1, output.message
     else:
@@ -68,18 +50,21 @@ def login(username, passwd,client):
 
 
 def logout(client):
-    global loggedIn
 
-    if not loggedIn:
-        if debug:
-            print "No need to logout since you are not logged in" 
+    output = client.service.logout() 
+    if output.rc != 0:
+        return 1, output.message
     else:
-        output = client.service.logout() 
-        if output.rc != 0:
-            return 1, output.message
-        else:
-            return 0
+        return 0
 
 
-def runCmd():
+def runCmd(client, command, **args):
+    output = getattr(client.service, command)(**args)
+    if output.rc != 0:
+        return 1, output.message
+    else:
+        return 0, output.List[0]
+
+
+def autoSave(client):
     pass
