@@ -46,7 +46,7 @@ def login(client, user, passwd):
     if output.rc != 0:
         return 1, output.message
     else:
-        return 0
+        return 0, output.message
 
 
 def logout(client):
@@ -55,7 +55,7 @@ def logout(client):
     if output.rc != 0:
         return 1, output.message
     else:
-        return 0
+        return 0, output.message
 
 
 def runCmd(client, command, **args):
@@ -63,7 +63,7 @@ def runCmd(client, command, **args):
     if output.rc != 0:
         return 1, output.message
     else:
-        return 0, output.List[0]
+        return 0, output.List
 
 
 def autoSave(client):
