@@ -4,6 +4,7 @@ import sys
 from optparse import OptionParser
 import netscalerapi
 import format
+import re
 
 dryrun = None
 debug = None
@@ -12,7 +13,7 @@ wsdl = None
 user = None
 passwd = None
 passwdFile = None
-failOverStatus = None
+primaryNode = None
 surgeQueueSize = None
 vserver = None
 listVservers = None
@@ -125,7 +126,7 @@ def main():
     global user
     global passwd
     global passwdFile
-    global failOverStatus
+    global primaryNode
     global surgeQueueSize
     global listVeservers
     global listServices
@@ -134,13 +135,13 @@ def main():
     parser = OptionParser()
     parser.add_option("--host", dest='host', help="IP or name of netscaler. Must be specified.")
     parser.add_option("--vserver", dest='vserver', help="Name of vserver that you would like to work with.")
-    parser.add_option("--wsdl", dest='wsdl', help="Name of WSDL. If not specified, will default to NSConfig.wsdl.", default="NSConfig.wsdl")
+    parser.add_option("--wsdl", dest='wsdl', help="Name of WSDL. If not specified, will default to NSConfig.wsdl.", default="NSConfig-tagged.wsdl")
     parser.add_option("--user", dest="user", help="User to login as.", default="***REMOVED***")
     parser.add_option("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
     parser.add_option("--passwd-file", dest="passwdFile", help="Where password is stored for user. Default is passwd.txt.", default="passwd.txt")
     parser.add_option("--list-vservers", action="store_true", dest='listVservers', help="List all vservers on NetScaler.")
     parser.add_option("--list-services", action="store_true", dest='listServices', help="List all services on NetScaler.")
-    parser.add_option("--failover-status", action="store_true", dest="failOverStatus", help="Detects a recent failover", default=False)
+    parser.add_option("--primary-node", action="store_true", dest="primaryNode", help="List IP of current primary node", default=False)
     parser.add_option("--surge-queue-size", action="store_true", dest="surgeQueueSize", help="Get current surge queue size of all servies bound to specified vserver. Must also specify --vserver.")
     parser.add_option("--debug", action="store_true", dest="debug", help="Shows what's going on.", default=False)
     parser.add_option("--dryrun", action="store_true", dest="dryrun", help="Don't actually execute any commands.", default=False)
@@ -152,11 +153,10 @@ def main():
     wsdl = options.wsdl
     dryrun = options.dryrun
     debug = options.debug
-    host = options.host
     user = options.user
     passwd = options.passwd
     passwdFile = options.passwdFile
-    failOverStatus = options.failOverStatus
+    primaryNode = options.primaryNode
     surgeQueueSize = options.surgeQueueSize
     listVservers = options.listVservers
     listServices = options.listServices
@@ -189,9 +189,17 @@ def main():
         if debug:
             print >> sys.stderr, "Problem fetching passwd from %s.\n" % (passwdFile)
         return 1 
-    else:
-        if debug:
-            print "Fetching password from %s\n" % (passwdFile)
+
+    # Showing user flags and their values
+    if debug:
+        print "Using the following variables:"
+        for option in dir(options):
+            regex = "(^_{1,2}|^read_file|^read_module|^ensure_value)"
+            if re.match(regex,option):
+                continue
+            else:
+                print "\t%s: %s" % (option,getattr(options,option))
+        print "\n"
 
     # Creating a client instance that we can use during
     # the rest of this script to interact with.
@@ -224,7 +232,7 @@ def main():
 
 
     # Checking for failover status
-    if failOverStatus:
+    if primaryNode:
         command = "gethanode"
         status , output = netscalerapi.runCmd(client,command)
         if status:
@@ -233,7 +241,8 @@ def main():
             return 1
         else:
             if debug:
-                print "Output from checking node status:\n%s\n" % (output)
+                print "Primary node is:"
+            print output[0].name, output[0].ipaddress, "\n"
 
             netscalerapi.logout(client)
             return 0 
