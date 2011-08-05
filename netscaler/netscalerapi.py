@@ -36,7 +36,10 @@ def connection(host,wsdl):
     _import.filter.add("urn:NSConfig")
     doctor = ImportDoctor(_import)
 
-    client = Client(wsdlUrl, doctor=doctor, location=soapUrl)
+    try:
+        client = Client(wsdlUrl, doctor=doctor, location=soapUrl)
+    except: 
+        return 1 
 
     return client
     

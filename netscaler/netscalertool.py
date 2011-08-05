@@ -22,6 +22,9 @@ listServices = None
 
 def getConnected(host,wsdl,user,passwd):
     client = netscalerapi.connection(host,wsdl)
+    if client == 1:
+        msg = "Could not establish a connection with %s. Might be due to invalid wsdl file." % (host)
+        return 1, msg
 
     # Logging into NetScaler.
     status, output = netscalerapi.login(client,user,passwd)
@@ -138,7 +141,7 @@ def main():
     parser.add_option("--wsdl", dest='wsdl', help="Name of WSDL. If not specified, will default to NSConfig.wsdl.", default="NSConfig-tagged.wsdl")
     parser.add_option("--user", dest="user", help="User to login as.", default="***REMOVED***")
     parser.add_option("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
-    parser.add_option("--passwd-file", dest="passwdFile", help="Where password is stored for user. Default is passwd.txt.", default="passwd.txt")
+    parser.add_option("--passwd-file", dest="passwdFile", help="Where password is stored for user. Default is passwd.txt.", default="/etc/netscalertool.conf")
     parser.add_option("--list-vservers", action="store_true", dest='listVservers', help="List all vservers on NetScaler.")
     parser.add_option("--list-services", action="store_true", dest='listServices', help="List all services on NetScaler.")
     parser.add_option("--primary-node", action="store_true", dest="primaryNode", help="List IP of current primary node", default=False)
@@ -168,7 +171,7 @@ def main():
 
     # Checking to see if user specified netscaler (host).
     if not host :
-        print "You need to specify a netscaler!\n"
+        print "You need to specify a NetScaler with --host=HOST.\n"
         parser.print_help()
         return 1
 
@@ -186,8 +189,7 @@ def main():
     # fetching password from file
     status, passwd = netscalerapi.fetchPasswd(passwdFile)
     if status:
-        if debug:
-            print >> sys.stderr, "Problem fetching passwd from %s.\n" % (passwdFile)
+        print >> sys.stderr, "Problem fetching passwd from %s.\n" % (passwdFile)
         return 1 
 
     # Showing user flags and their values
@@ -205,7 +207,7 @@ def main():
     # the rest of this script to interact with.
     status, client = getConnected(host,wsdl,user,passwd)
     if status:
-        print >> sys.stderr, "Problem creating connection to %s\n" % (host)
+        print >> sys.stderr, "%s\n" % (client)
         return 1
 
     # Fetching list of all vservers on specified NetScaler.
