@@ -138,7 +138,7 @@ def main():
     parser = OptionParser()
     parser.add_option("--host", dest='host', help="IP or name of netscaler. Must be specified.")
     parser.add_option("--vserver", dest='vserver', help="Name of vserver that you would like to work with.")
-    parser.add_option("--wsdl", dest='wsdl', help="Name of WSDL. If not specified, will default to NSConfig.wsdl.", default="NSConfig-tagged.wsdl")
+    parser.add_option("--wsdl", dest='wsdl', help="Name of WSDL. If not specified, will default to NSConfig-tagged.wsdl.", default="NSConfig-tagged.wsdl")
     parser.add_option("--user", dest="user", help="User to login as.", default="***REMOVED***")
     parser.add_option("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
     parser.add_option("--passwd-file", dest="passwdFile", help="Where password is stored for user. Default is passwd.txt.", default="/etc/netscalertool.conf")
