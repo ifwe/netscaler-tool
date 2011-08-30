@@ -46,6 +46,7 @@ def getListServices(client):
     for entry in output:
         list.append(entry.name)
 
+    list.sort()
     return 0, list
 
 
@@ -60,6 +61,7 @@ def getListVservers(client):
     for entry in output:
         list.append(entry.name)
 
+    list.sort()
     return 0, list
 
 
