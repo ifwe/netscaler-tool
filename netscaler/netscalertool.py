@@ -9,6 +9,8 @@ import re
 dryrun = None
 debug = None
 host = None
+vserver = None
+mode = None
 wsdl = None
 user = None
 passwd = None
@@ -122,11 +124,23 @@ def getSurgeQueueSize(client,vserver):
     return 0, surgeCountTotal
 
 
+def saveNsConfig(client):
+    command = "savensconfig"
+
+    status, output = netscalerapi.runCmd(client,command)
+    if status:
+        return 1, output
+
+    return 0, None
+
+
 def main():
     
     global dryrun
     global debug
     global host
+    global vserver
+    global mode
     global wsdl
     global user
     global passwd
@@ -140,6 +154,7 @@ def main():
     parser = OptionParser()
     parser.add_option("--host", dest='host', help="IP or name of netscaler. Must be specified.")
     parser.add_option("--vserver", dest='vserver', help="Name of vserver that you would like to work with.")
+    parser.add_option("--mode", dest='mode', help="Add or Remove vserver.",default=False)
     parser.add_option("--wsdl", dest='wsdl', help="Name of WSDL. If not specified, will default to NSConfig-tagged.wsdl.", default="NSConfig-tagged.wsdl")
     parser.add_option("--user", dest="user", help="User to login as.", default="***REMOVED***")
     parser.add_option("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
@@ -155,6 +170,7 @@ def main():
 
     host = options.host
     vserver = options.vserver
+    mode = options.mode
     wsdl = options.wsdl
     dryrun = options.dryrun
     debug = options.debug
@@ -183,6 +199,14 @@ def main():
         print "You need to specify a vserver!\n"
         parser.print_help()
         return 1
+
+    # Checking to make sure the user specified a vserver when wanting
+    # to add/remove a vserver.
+    if mode and not vserver: 
+        print "You need to specify a vserver or service when specifying --mode!\n"
+        parser.print_help()
+        return 1
+
 
     ################################
     # End of checking user's input #
@@ -217,6 +241,7 @@ def main():
         status, output = getListVservers(client)
         if status:
             print >> sys.stderr, "Problem while trying to get list of vservers on %s." % (host)
+            netscalerapi.logout(client)
             return 1
         else:
             format.printList(output)
@@ -228,6 +253,7 @@ def main():
         status, output = getListServices(client)
         if status:
             print >> sys.stderr, "Problem while trying to get list of services on %s." % (host)
+            netscalerapi.logout(client)
             return 1
         else:
             format.printList(output)
@@ -242,6 +268,7 @@ def main():
         if status:
             if debug:
                 print >> sys.stderr, "There was a problem running %s:\n%s" % (command,output)
+            netscalerapi.logout(client)
             return 1
         else:
             if debug:
@@ -256,6 +283,7 @@ def main():
         status, output = getSurgeQueueSize(client,vserver)
         if status:
             print >> sys.stderr, "There was a problem getting surge queue size of vserver %s\n%s" % (vserver,output)
+            netscalerapi.logout(client)
             return 1
         else:
             if debug:
@@ -264,7 +292,6 @@ def main():
 
             netscalerapi.logout(client)
             return 0
-        
 
     # Logging out of NetScaler.
     netscalerapi.logout(client)
