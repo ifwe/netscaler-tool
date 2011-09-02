@@ -5,6 +5,7 @@ from optparse import OptionParser
 import netscalerapi
 import format
 import re
+import socket
 
 dryrun = None
 debug = None
@@ -154,7 +155,7 @@ def main():
     parser = OptionParser()
     parser.add_option("--host", dest='host', help="IP or name of netscaler. Must be specified.")
     parser.add_option("--vserver", dest='vserver', help="Name of vserver that you would like to work with.")
-    parser.add_option("--mode", dest='mode', help="Add or Remove vserver.",default=False)
+    parser.add_option("--mode", dest='mode', help="Add or Remove vserver. Valid options are either \"aad\" or \"rm\".",default=False)
     parser.add_option("--wsdl", dest='wsdl', help="Name of WSDL. If not specified, will default to NSConfig-tagged.wsdl.", default="NSConfig-tagged.wsdl")
     parser.add_option("--user", dest="user", help="User to login as.", default="***REMOVED***")
     parser.add_option("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
@@ -206,6 +207,16 @@ def main():
         print "You need to specify a vserver or service when specifying --mode!\n"
         parser.print_help()
         return 1
+
+    # Normalizing mode to lower case.
+    if mode:
+        mode = mode.lower()
+
+        # Checking if the user specified either add or rm with mode.
+        if mode != "add" and mode != "rm":
+            print "You need to specify either \"add\" or \"rm\" for mode!\n"
+            parser.print_help()
+            return 1
 
 
     ################################
@@ -292,6 +303,16 @@ def main():
 
             netscalerapi.logout(client)
             return 0
+
+    # Adding/Removing vserver.
+    if mode and vserver:
+        # Lets check to see if vserver exists in DNS.
+        try:
+            socket.gethostbyaddr(vserver)
+        except socket.gaierror, e:
+            print >> sys.stderr, "Vserver %s does not resolve. Please create DNS entry and try again.\n" % (vserver)
+            return 1
+
 
     # Logging out of NetScaler.
     netscalerapi.logout(client)

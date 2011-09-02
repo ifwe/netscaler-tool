@@ -37,7 +37,7 @@ def connection(host,wsdl):
     doctor = ImportDoctor(_import)
 
     try:
-        client = Client(wsdlUrl, doctor=doctor, location=soapUrl)
+        client = Client(wsdlUrl, doctor=doctor, location=soapUrl, cache=None)
     except: 
         return 1 
 
