@@ -11,6 +11,8 @@ dryrun = None
 debug = None
 host = None
 vserver = None
+server = None
+service = None
 mode = None
 wsdl = None
 user = None
@@ -18,7 +20,6 @@ passwd = None
 passwdFile = None
 primaryNode = None
 surgeQueueSize = None
-vserver = None
 listVservers = None
 listServices = None
 
@@ -135,12 +136,25 @@ def saveNsConfig(client):
     return 0, None
 
 
+def vserverExists(client, vserver):
+    command = "getlbvserver"
+    arg = {'name':vserver}
+
+    status, output = netscalerapi.runCmd(client,command,**arg)
+    if status:
+        return 1, output
+
+    return 0, None
+
+
 def main():
     
     global dryrun
     global debug
     global host
     global vserver
+    global server
+    global service
     global mode
     global wsdl
     global user
@@ -154,8 +168,10 @@ def main():
     # Getting options from user
     parser = OptionParser()
     parser.add_option("--host", dest='host', help="IP or name of netscaler. Must be specified.")
-    parser.add_option("--vserver", dest='vserver', help="Name of vserver that you would like to work with.")
-    parser.add_option("--mode", dest='mode', help="Add or Remove vserver. Valid options are either \"aad\" or \"rm\".",default=False)
+    parser.add_option("--vserver", dest='vserver', help="Name of vserver you would like to work with.")
+    parser.add_option("--server", dest='server', action='append', help="Name of server(s) you would like to work with.")
+    parser.add_option("--service", dest='service', action='append', help="Name of service(s) you would like to work with.")
+    parser.add_option("--mode", dest='mode', help="Add, Remove, Enable, or Disable vserver/server/service. Valid options are either \"aad\", \"rm\", \"enable\", \"disable\".",default=False)
     parser.add_option("--wsdl", dest='wsdl', help="Name of WSDL. If not specified, will default to NSConfig-tagged.wsdl.", default="NSConfig-tagged.wsdl")
     parser.add_option("--user", dest="user", help="User to login as.", default="***REMOVED***")
     parser.add_option("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
@@ -171,6 +187,8 @@ def main():
 
     host = options.host
     vserver = options.vserver
+    server = options.server
+    service = options.service
     mode = options.mode
     wsdl = options.wsdl
     dryrun = options.dryrun
@@ -213,11 +231,57 @@ def main():
         mode = mode.lower()
 
         # Checking if the user specified either add or rm with mode.
-        if mode != "add" and mode != "rm":
-            print "You need to specify either \"add\" or \"rm\" for mode!\n"
+        if mode != "add" and mode != "rm" and mode != "enable" and mode != "disable":
+            print "You need to specify either \"add\", \"rm\", \"enable\", or \"disable\" for mode!\n"
             parser.print_help()
             return 1
 
+    # Let's check to see if vserver resolve.
+    if vserver:
+        try:
+            socket.gethostbyaddr(vserver)
+        except socket.gaierror, e:
+            print >> sys.stderr, "Vserver %s does not resolve. Please create DNS entry and try again.\n" % (vserver)
+            return 1
+
+    # Let's check to see if service(s) resolve.
+    if service:
+        for entry in service:
+            if entry.find('['):
+                start = entry.find('[')
+                middle = entry.find('-')
+                end = entry.find(']')
+                firstNumber = entry[(start+1):middle] 
+                secondNumber = entry[(middle+1):end] 
+        
+            print range(firstNumber,secondNumber)
+
+    # Let's check to see if servers resolve.
+    if server:
+        serverList = {}
+        for entry in server:
+            if entry.find('['):
+                start = entry.find('[')
+                middle = entry.find('-')
+                end = entry.find(']')
+                firstNumber = int(entry[(start+1):middle])
+                secondNumber = int(entry[(middle+1):end])
+                hostNameBase = entry[0:start]
+            
+            for number in range(firstNumber,secondNumber+1):
+                hostName = hostNameBase + str(number)
+                serverList[hostName] = ''
+
+        print serverList
+    return 0
+
+    # Can't work on service(s) and server(s) at the same time
+    if service and server:
+        print "You can specify either server or service, but not both!\n"
+        parser.print_help()
+        return 1
+
+    return 0
 
     ################################
     # End of checking user's input #
@@ -304,14 +368,26 @@ def main():
             netscalerapi.logout(client)
             return 0
 
-    # Adding/Removing vserver.
-    if mode and vserver:
-        # Lets check to see if vserver exists in DNS.
-        try:
-            socket.gethostbyaddr(vserver)
-        except socket.gaierror, e:
-            print >> sys.stderr, "Vserver %s does not resolve. Please create DNS entry and try again.\n" % (vserver)
+    # Adding vserver.
+    if mode == 'add' and vserver:
+        # Let's check to see if a vserver with that name already exists.
+        if status:
+            print >> sys.stderr, "%s already exists. Please pick a different name for vserver!\n" % (vserver)
             return 1
+
+        # Let's check if there are server entries.
+        try:
+            socket.gethostbyaddr(server)
+        except socket.gaierror, e:
+            print >> sys.stderr, "Server %s does not resolve. Please create DNS entry for %s and try again.\n" % (server,server)
+            return 1
+
+
+        
+
+    # Removing vserver.
+    if mode == 'rm' and vserver:
+        pass
 
 
     # Logging out of NetScaler.
