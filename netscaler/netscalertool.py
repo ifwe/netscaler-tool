@@ -9,6 +9,7 @@ import socket
 
 dryrun = None
 debug = None
+ignoreDns = None
 host = None
 vserver = None
 server = None
@@ -152,6 +153,7 @@ def main():
     global dryrun
     global debug
     global host
+    global ignoreDns
     global vserver
     global server
     global service
@@ -175,11 +177,12 @@ def main():
     parser.add_option("--wsdl", dest='wsdl', help="Name of WSDL. If not specified, will default to NSConfig-tagged.wsdl.", default="NSConfig-tagged.wsdl")
     parser.add_option("--user", dest="user", help="User to login as.", default="***REMOVED***")
     parser.add_option("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
-    parser.add_option("--passwd-file", dest="passwdFile", help="Where password is stored for user. Default is passwd.txt.", default="/etc/netscalertool.conf")
+    parser.add_option("--passwd-file", dest="passwdFile", help="Where password is stored for user. Default is /etc/netscalertool.conf.", default="/etc/netscalertool.conf")
     parser.add_option("--list-vservers", action="store_true", dest='listVservers', help="List all vservers on NetScaler.")
     parser.add_option("--list-services", action="store_true", dest='listServices', help="List all services on NetScaler.")
     parser.add_option("--primary-node", action="store_true", dest="primaryNode", help="List IP of current primary node", default=False)
     parser.add_option("--surge-queue-size", action="store_true", dest="surgeQueueSize", help="Get current surge queue size of all servies bound to specified vserver. Must also specify --vserver.")
+    parser.add_option("--ignore-dns", action="store_true", dest="ignoreDns", help="Won't try to resolve server or vserver.", default=False)
     parser.add_option("--debug", action="store_true", dest="debug", help="Shows what's going on.", default=False)
     parser.add_option("--dryrun", action="store_true", dest="dryrun", help="Don't actually execute any commands.", default=False)
     
@@ -193,6 +196,7 @@ def main():
     wsdl = options.wsdl
     dryrun = options.dryrun
     debug = options.debug
+    ignoreDns = options.ignoreDns
     user = options.user
     passwd = options.passwd
     passwdFile = options.passwdFile
@@ -238,11 +242,12 @@ def main():
 
     # Let's check to see if vserver resolve.
     if vserver:
-        try:
-            socket.gethostbyaddr(vserver)
-        except socket.gaierror, e:
-            print >> sys.stderr, "Vserver %s does not resolve. Please create DNS entry and try again.\n" % (vserver)
-            return 1
+        if not ignoreDns:
+            try:
+                socket.gethostbyaddr(vserver)
+            except socket.gaierror, e:
+                print >> sys.stderr, "Vserver %s does not resolve. Please create DNS entry and try again.\n" % (vserver)
+                return 1
 
     # Let's check to see if service(s) resolve.
     if service:
@@ -273,15 +278,12 @@ def main():
                 serverList[hostName] = ''
 
         print serverList
-    return 0
 
     # Can't work on service(s) and server(s) at the same time
     if service and server:
         print "You can specify either server or service, but not both!\n"
         parser.print_help()
         return 1
-
-    return 0
 
     ################################
     # End of checking user's input #
