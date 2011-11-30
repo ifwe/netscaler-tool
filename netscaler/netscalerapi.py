@@ -13,7 +13,7 @@ def fetchPasswd(passwdFile):
     try:
         f = open(passwdFile,'r')
     except IOError, e:
-        return 1, e
+        raise IOError(e)
 
     # Reading contents of passwd file.
     passwd = f.readline().strip('\n')
@@ -22,7 +22,7 @@ def fetchPasswd(passwdFile):
     f.close()
 
     # Returning passwd
-    return 0, passwd
+    return passwd
 
 
 def connection(host,wsdl):
@@ -38,35 +38,36 @@ def connection(host,wsdl):
 
     try:
         client = Client(wsdlUrl, doctor=doctor, location=soapUrl, cache=None)
-    except: 
-        return 1 
+    except Exception, e: 
+        raise RuntimeError(e)
 
+    # Returning client object
     return client
     
 
 def login(client, user, passwd):
     output = client.service.login(username=user, password=passwd)
     if output.rc != 0:
-        return 1, output.message
+        raise RuntimeError(output.message)
     else:
-        return 0, output.message
+        return output.message
 
 
 def logout(client):
 
     output = client.service.logout() 
     if output.rc != 0:
-        return 1, output.message
+        raise RuntimeError(output.message)
     else:
-        return 0, output.message
+        return output.message
 
 
 def runCmd(client, command, **args):
     output = getattr(client.service, command)(**args)
     if output.rc != 0:
-        return 1, output.message
+        raise RuntimeError(output.message)
     else:
-        return 0, output.List
+        return output.List
 
 
 def autoSave(client):

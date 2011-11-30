@@ -26,70 +26,75 @@ listServices = None
 
 
 def getConnected(host,wsdl,user,passwd):
-    client = netscalerapi.connection(host,wsdl)
-    if client == 1:
-        msg = "Could not establish a connection with %s. Might be due to invalid wsdl file." % (host)
-        return 1, msg
+    
+    try:
+        client = netscalerapi.connection(host,wsdl)
+    except RuntimeError, e:
+        raise RuntimeError(e)
 
     # Logging into NetScaler.
-    status, output = netscalerapi.login(client,user,passwd)
-    if status:
-        msg = "Could not log into %s.\n" % (host)
-        return 1, msg
+    try:
+        netscalerapi.login(client,user,passwd)
+    except RuntimeError, e:
+        raise RuntimeError(e)
 
-    return 0, client
+    return client
     
 
 def getListServices(client):
     command = "getservice"
     list = []
 
-    status, output = netscalerapi.runCmd(client,command)
-    if status:
-        return 1, output
+    try:
+        output = netscalerapi.runCmd(client,command)
+    except RuntimeError, e:
+        raise RuntimeError(e)
 
     for entry in output:
         list.append(entry.name)
 
     list.sort()
-    return 0, list
+    return list
 
 
 def getListVservers(client):
     command = "getlbvserver"
     list = []
 
-    status, output = netscalerapi.runCmd(client,command)
-    if status:
-        return 1, output
+    try:
+        output = netscalerapi.runCmd(client,command)
+    except RuntimeError, e:
+        raise RuntimeError(e)
 
     for entry in output:
         list.append(entry.name)
 
     list.sort()
-    return 0, list
+    return list
 
 
 def getServices(client,vserver):
     command = "getlbvserver"
     arg = {'name':vserver}
 
-    status, output = netscalerapi.runCmd(client,command,**arg)
-    if status:
-        return 1, output
+    try:
+        output = netscalerapi.runCmd(client,command,**arg)
+    except RuntimeError, e:
+        raise RuntimeError(e)
 
-    return 0, output[0].servicename
+    return output[0].servicename
 
 
 def getStatServices(client,service):
     command = "statservice"
     arg = {'name':service}
 
-    status, output = netscalerapi.runCmd(client,command,**arg)
-    if status:
-        return 1, output
+    try:
+        output = netscalerapi.runCmd(client,command,**arg)
+    except RuntimeError, e:
+        raise RuntimeError(e)
 
-    return 0, output[0].surgecount
+    return output[0].surgecount
 
 
 def getSurgeQueueSize(client,vserver):
@@ -98,54 +103,58 @@ def getSurgeQueueSize(client,vserver):
     wsdlURL = "http://%s/api/%s" % (host,wsdl)
     surgeCountTotal = 0
 
-    status, output = getServices(client,vserver)
-    if status:
-        msg = "Problem get services bound to vserver %s\n" % (vserver)
-        return 1, msg
+    try:
+        output = getServices(client,vserver)
+    except RuntimeError, e:
+        raise RuntimeError(e)
 
     # Since we got the services bound to the vserver in question, we now
     # need to get surge queue count for each service, but that requires we
     # change wsdl files.
-    status, client = getConnected(host,wsdl,user,passwd)
-    if status:
-        print "%s\n" % (msg)
-        return 1
+    try:
+        client = getConnected(host,wsdl,user,passwd)
+    except RuntimeError, e:
+        raise RuntimeError(e)
 
     # Going through the list of services to get surge count.
     for service in output:
         if debug:
             print "Fetching surge queue count for %s" % (service)
 
-        status, output = getStatServices(client,service)
+        try:
+            output = getStatServices(client,service)
+        except RuntimeError, e:
+            raise RuntimeError(e)
         
         if debug:
             print "Surge count for %s: %s\n" % (service,output)
 
         surgeCountTotal =+ int(output)
 
-        
-    return 0, surgeCountTotal
+    return surgeCountTotal
 
 
 def saveNsConfig(client):
     command = "savensconfig"
 
-    status, output = netscalerapi.runCmd(client,command)
-    if status:
-        return 1, output
+    try:
+        output = netscalerapi.runCmd(client,command)
+    except RuntimeError, e:
+        raise RuntimeError(e)
 
-    return 0, None
+    return 0
 
 
 def vserverExists(client, vserver):
     command = "getlbvserver"
     arg = {'name':vserver}
 
-    status, output = netscalerapi.runCmd(client,command,**arg)
-    if status:
-        return 1, output
+    try:
+        output = netscalerapi.runCmd(client,command,**arg)
+    except RuntimeError, e:
+        raise RuntimeError(e)
 
-    return 0, None
+    return 0
 
 
 def main():
