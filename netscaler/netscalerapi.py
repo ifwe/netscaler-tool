@@ -56,7 +56,7 @@ def login(client, user, passwd):
 def logout(client):
 
     output = client.service.logout() 
-    if output.rc != 0:
+    if output.rc != 0 and output.rc != 1041:
         raise RuntimeError(output.message)
     else:
         return output.message

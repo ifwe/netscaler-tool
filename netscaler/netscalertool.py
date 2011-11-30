@@ -142,8 +142,6 @@ def saveNsConfig(client):
     except RuntimeError, e:
         raise RuntimeError(e)
 
-    return 0
-
 
 def vserverExists(client, vserver):
     command = "getlbvserver"
@@ -153,8 +151,6 @@ def vserverExists(client, vserver):
         output = netscalerapi.runCmd(client,command,**arg)
     except RuntimeError, e:
         raise RuntimeError(e)
-
-    return 0
 
 
 def main():
@@ -299,9 +295,10 @@ def main():
     ################################
         
     # fetching password from file
-    status, passwd = netscalerapi.fetchPasswd(passwdFile)
-    if status:
-        print >> sys.stderr, "Problem fetching passwd from %s.\n" % (passwdFile)
+    try:
+        passwd = netscalerapi.fetchPasswd(passwdFile)
+    except IOError, e:
+        print >> sys.stderr, e
         return 1 
 
     # Showing user flags and their values
@@ -317,67 +314,94 @@ def main():
 
     # Creating a client instance that we can use during
     # the rest of this script to interact with.
-    status, client = getConnected(host,wsdl,user,passwd)
-    if status:
-        print >> sys.stderr, "%s\n" % (client)
+    try:
+        client = getConnected(host,wsdl,user,passwd)
+    except RuntimeError, e:
+        print >> sys.stderr, "Problem creating client instance.\n%s" % (e)
         return 1
 
     # Fetching list of all vservers on specified NetScaler.
     if listVservers:
-        status, output = getListVservers(client)
-        if status:
-            print >> sys.stderr, "Problem while trying to get list of vservers on %s." % (host)
-            netscalerapi.logout(client)
+        try:
+            output = getListVservers(client)
+        except RuntimeError, e:
+            print >> sys.stderr, "Problem while trying to get list of vservers on %s.\n%s" % (host,e)
+            try:
+                netscalerapi.logout(client)
+            except RuntimeError, e:
+                print >> sys.stderr, "There was a problem logging out.", e
             return 1
-        else:
-            format.printList(output)
+
+        format.printList(output)
+        try:
             netscalerapi.logout(client)
-            return 0
+        except RuntimeError, e:
+            print >> sys.stderr, "There was a problem logging out.", e
+        return 0
 
     # Fetching list of all servies on specified NetScaler.
     if listServices:
-        status, output = getListServices(client)
-        if status:
-            print >> sys.stderr, "Problem while trying to get list of services on %s." % (host)
-            netscalerapi.logout(client)
+        try:
+            output = getListServices(client)
+        except RuntimeError, e:
+            print >> sys.stderr, "Problem while trying to get list of services on %s.\n%s" % (host,e)
+            try:
+                netscalerapi.logout(client)
+            except RuntimeError, e:
+                print >> sys.stderr, "There was a problem logging out.", e
             return 1
-        else:
-            format.printList(output)
+
+        format.printList(output)
+        try:
             netscalerapi.logout(client)
-            return 0
+        except RuntimeError, e:
+            print >> sys.stderr, "There was a problem logging out.", e
+        return 0
 
 
     # Checking for failover status
     if primaryNode:
         command = "gethanode"
-        status , output = netscalerapi.runCmd(client,command)
-        if status:
-            if debug:
-                print >> sys.stderr, "There was a problem running %s:\n%s" % (command,output)
-            netscalerapi.logout(client)
+        try:
+            output = netscalerapi.runCmd(client,command)
+        except RuntimeError, e:
+            print >> sys.stderr, e
+            try:
+                netscalerapi.logout(client)
+            except RuntimeError, e:
+                print >> sys.stderr, "There was a problem logging out.", e
             return 1
-        else:
-            if debug:
-                print "Primary node is:"
-            print output[0].name, output[0].ipaddress, "\n"
 
+        print "Primary node is:"
+        print output[0].name, output[0].ipaddress, "\n"
+
+        try:
             netscalerapi.logout(client)
-            return 0 
+        except RuntimeError, e:
+            print >> sys.stderr, "There was a problem logging out.", e
+        return 0 
 
     # Fetching surge queue size for specified vserver
     if surgeQueueSize:
-        status, output = getSurgeQueueSize(client,vserver)
-        if status:
-            print >> sys.stderr, "There was a problem getting surge queue size of vserver %s\n%s" % (vserver,output)
-            netscalerapi.logout(client)
+        try:
+            output = getSurgeQueueSize(client,vserver)
+        except RuntimeError, e:
+            print >> sys.stderr, "Problem get surge queue size of all services bound to vserver %s.\n%s" % (vserver,e)
+            try:
+                netscalerapi.logout(client)
+            except RuntimeError, e:
+                print >> sys.stderr, "There was a problem logging out.", e
             return 1
-        else:
-            if debug:
-                print "Total Surge Queue Size is:"
-            print output
 
+        if debug:
+            print "Total Surge Queue Size is:"
+        print output
+
+        try:
             netscalerapi.logout(client)
-            return 0
+        except RuntimeError, e:
+            print >> sys.stderr, "There was a problem logging out.", e
+        return 0
 
     # Adding vserver.
     if mode == 'add' and vserver:
@@ -393,16 +417,15 @@ def main():
             print >> sys.stderr, "Server %s does not resolve. Please create DNS entry for %s and try again.\n" % (server,server)
             return 1
 
-
-        
-
     # Removing vserver.
     if mode == 'rm' and vserver:
         pass
 
-
     # Logging out of NetScaler.
-    netscalerapi.logout(client)
+    try:
+        netscalerapi.logout(client)
+    except RuntimeError, e:
+        print >> sys.stderr, "There was a problem logging out.", e
 
     # Successfully exiting
     return 0
