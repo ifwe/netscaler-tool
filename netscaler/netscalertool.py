@@ -82,7 +82,11 @@ def getServices(client,vserver):
     except RuntimeError, e:
         raise RuntimeError(e)
 
-    return output[0].servicename
+    try:
+        return output[0].servicename
+    except AttributeError:
+        e = "Vserver %s doesn't have any service bound to it. You can probably delete it." % (vserver)
+        raise RuntimeError(e)
 
 
 def getStatServices(client,service):
@@ -386,7 +390,7 @@ def main():
         try:
             output = getSurgeQueueSize(client,vserver)
         except RuntimeError, e:
-            print >> sys.stderr, "Problem get surge queue size of all services bound to vserver %s.\n%s" % (vserver,e)
+            print >> sys.stderr, "Problem getting surge queue size of all services bound to vserver %s.\n%s" % (vserver,e)
             try:
                 netscalerapi.logout(client)
             except RuntimeError, e:
