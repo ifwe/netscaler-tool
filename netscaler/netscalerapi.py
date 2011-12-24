@@ -84,7 +84,7 @@ def runCmd(client, command, **args):
         return output.List
 
 
-def getListServices(client):
+def getAllServices(client):
     command = "getservice"
     list = []
 
@@ -100,7 +100,7 @@ def getListServices(client):
     return list
 
 
-def getListVservers(client):
+def getAllVservers(client):
     command = "getlbvserver"
     list = []
 
@@ -116,7 +116,7 @@ def getListVservers(client):
     return list
 
 
-def getServices(client,vserver):
+def getServicesBound(client,vserver):
     command = "getlbvserver"
     arg = {'name':vserver}
 
@@ -145,13 +145,12 @@ def getStatServices(client,service):
 
 
 def getSurgeQueueSize(client,vserver):
-    msg = ""
     wsdl = "NSStat.wsdl"
     wsdlURL = "http://%s/api/%s" % (host,wsdl)
     surgeCountTotal = 0
 
     try:
-        output = getServices(client,vserver)
+        services = getServicesBound(client,vserver)
     except RuntimeError, e:
         raise RuntimeError(e)
 
@@ -164,7 +163,7 @@ def getSurgeQueueSize(client,vserver):
         raise RuntimeError(e)
 
     # Going through the list of services to get surge count.
-    for service in output:
+    for service in services:
         if debug:
             print "Fetching surge queue count for %s" % (service)
 
@@ -181,12 +180,12 @@ def getSurgeQueueSize(client,vserver):
     return surgeCountTotal
 
 
-def vserverExists(client, vserver):
+def getVserver(client, vserver):
     command = "getlbvserver"
     arg = {'name':vserver}
 
     try:
-        output = netscalerapi.runCmd(client,command,**arg)
+        output = runCmd(client,command,**arg)
     except RuntimeError, e:
         raise RuntimeError(e)
 
