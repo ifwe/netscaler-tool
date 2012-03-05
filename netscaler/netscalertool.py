@@ -1,67 +1,56 @@
 #!/usr/bin/env python
 
 import sys
-from optparse import OptionParser
+import argparse
 import netscalerapi
 import format
 import re
 import socket
 
-dryrun = None
-debug = None
-ignoreDns = None
-host = None
-vserver = None
-server = None
-service = None
-mode = None
-wsdl = None
-user = None
-passwd = None
-passwdFile = None
-primaryNode = None
-surgeQueueSize = None
-listVservers = None
-listServices = None
-
-
 def main():
     
-    global dryrun
-    global debug
-    global host
-    global ignoreDns
-    global vserver
-    global server
-    global service
-    global mode
-    global wsdl
-    global user
-    global passwd
-    global passwdFile
-    global primaryNode
-    global surgeQueueSize
-    global listVeservers
-    global listServices
-
     # Getting options from user
-    parser = OptionParser()
-    parser.add_option("--host", dest='host', help="IP or name of netscaler. Must be specified.")
-    parser.add_option("--vserver", dest='vserver', help="Name of vserver you would like to work with.")
-    parser.add_option("--server", dest='server', action='append', help="Name of server(s) you would like to work with.")
-    parser.add_option("--service", dest='service', action='append', help="Name of service(s) you would like to work with.")
-    parser.add_option("--mode", dest='mode', help="Add, Remove, Enable, or Disable vserver/server/service. Valid options are either \"aad\", \"rm\", \"enable\", \"disable\".",default=False)
-    parser.add_option("--wsdl", dest='wsdl', help="Name of WSDL. If not specified, will default to NSConfig-tagged.wsdl.", default="NSConfig-tagged.wsdl")
-    parser.add_option("--user", dest="user", help="User to login as.", default="***REMOVED***")
-    parser.add_option("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
-    parser.add_option("--passwd-file", dest="passwdFile", help="Where password is stored for user. Default is /etc/netscalertool.conf.", default="/etc/netscalertool.conf")
-    parser.add_option("--list-vservers", action="store_true", dest='listVservers', help="List all vservers on NetScaler.")
-    parser.add_option("--list-services", action="store_true", dest='listServices', help="List all services on NetScaler.")
-    parser.add_option("--primary-node", action="store_true", dest="primaryNode", help="List IP of current primary node", default=False)
-    parser.add_option("--surge-queue-size", action="store_true", dest="surgeQueueSize", help="Get current surge queue size of all servies bound to specified vserver. Must also specify --vserver.")
-    parser.add_option("--ignore-dns", action="store_true", dest="ignoreDns", help="Won't try to resolve server or vserver.", default=False)
-    parser.add_option("--debug", action="store_true", dest="debug", help="Shows what's going on.", default=False)
-    parser.add_option("--dryrun", action="store_true", dest="dryrun", help="Don't actually execute any commands.", default=False)
+    parser = argparse.ArgumentParser()
+
+    # Adding subparser to main parser
+    subparser = parser.add_subparsers()
+
+    # Creating server subparser
+    parserServer = subparser.add_parser('server', help="Edit/view server")
+    parserServer.add_argument('add', help='Added server')
+    parserServer.add_argument('rm', help='Remove server')
+
+    # Creating service subparser
+    parserService = subparser.add_parser('server', help="Edit/view service")
+    parserService.add_argument('add', help='Added service')
+    parserService.add_argument('rm', help='Remove service')
+
+    # Creating vserver subparser
+    parserVserver = subparser.add_parser('vserver', help="Edit/view vservers")
+    parserVserver.add_argument('add', help='Added vserver')
+    parserVserver.add_argument('rm', help='Remove vserver')
+
+    parser.add_argument("--host", dest='host', help="IP or name of netscaler. Must be specified.")
+    parser.add_argument("--vserver", dest='vserver', help="Name of vserver you would like to work with.")
+    parser.add_argument("--server", dest='server', action='append', help="Name of server(s) you would like to work with.")
+    parser.add_argument("--service", dest='service', action='append', help="Name of service(s) you would like to work with.")
+
+    parser.add_argument("--mode", dest='mode', help="Add, Remove, Enable, or Disable vserver/server/service. Valid options are either \"aad\", \"rm\", \"enable\", \"disable\".",default=False)
+
+
+
+
+    parser.add_argument("--wsdl", dest='wsdl', help="Name of WSDL. If not specified, will default to NSConfig-tagged.wsdl.", default="NSConfig-tagged.wsdl")
+    parser.add_argument("--user", dest="user", help="User to login as.", default="***REMOVED***")
+    parser.add_argument("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
+    parser.add_argument("--passwd-file", dest="passwdFile", help="Where password is stored for user. Default is /etc/netscalertool.conf.", default="/etc/netscalertool.conf")
+    parser.add_argument("--list-vservers", action="store_true", dest='listVservers', help="List all vservers on NetScaler.")
+    parser.add_argument("--list-services", action="store_true", dest='listServices', help="List all services on NetScaler.")
+    parser.add_argument("--primary-node", action="store_true", dest="primaryNode", help="List IP of current primary node", default=False)
+    parser.add_argument("--surge-queue-size", action="store_true", dest="surgeQueueSize", help="Get current surge queue size of all servies bound to specified vserver. Must also specify --vserver.")
+    parser.add_argument("--ignore-dns", action="store_true", dest="ignoreDns", help="Won't try to resolve server or vserver.", default=False)
+    parser.add_argument("--debug", action="store_true", dest="debug", help="Shows what's going on.", default=False)
+    parser.add_argument("--dryrun", action="store_true", dest="dryrun", help="Don't actually execute any commands.", default=False)
     
     (options, args) = parser.parse_args()
 
