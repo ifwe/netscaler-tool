@@ -217,7 +217,7 @@ def addService(server,proto,port,monitor,weight):
     pass
     
 
-def addLbVserver(vserver,service)
+def addLbVserver(vserver,service):
     # Check if vserver resolves.
     try:
         socket.gethostbyname_ex(server)
