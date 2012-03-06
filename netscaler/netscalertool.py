@@ -9,68 +9,66 @@ import socket
 
 def main():
     
-    # Getting options from user
+    # Created parser
     parser = argparse.ArgumentParser()
 
-    # Adding subparser to main parser
+    # Created subparser 
     subparser = parser.add_subparsers()
 
+    #############################################################
     # Creating server subparser
-    parserServer = subparser.add_parser('server', help="Edit/view server")
-    parserServer.add_argument('add', help='Added server')
-    parserServer.add_argument('rm', help='Remove server')
+    parserServerAdd = subparser.add_parser('add', help='Add server')
+    parserServerRm = subparser.add_parser('rm', help='Removeserver')
+    parserServerAdd.add_argument('--server', help='Server name')
+    parserServerRm.add_argument('--server', help='Server name')
+    ####################################################################
 
+
+    #############################################################
     # Creating service subparser
-    parserService = subparser.add_parser('server', help="Edit/view service")
-    parserService.add_argument('add', help='Added service')
-    parserService.add_argument('rm', help='Remove service')
+    parserServiceAdd = subparser.add_parser('add', help='Add service')
+    parserServiceRm = subparser.add_parser('rm', help='Remove service')
+    parserServiceAdd.add_argument('--service', help='Service name')
+    parserServiceRm.add_argument('--service', help='Service name')
+    ####################################################################
 
+
+    ####################################################################
     # Creating vserver subparser
-    parserVserver = subparser.add_parser('vserver', help="Edit/view vservers")
-    parserVserver.add_argument('add', help='Added vserver')
-    parserVserver.add_argument('rm', help='Remove vserver')
+    parserVserverAdd = subparser.add_parser('add', help='Add vserver')
+    parserVserverRm = subparser.add_parser('rm', help='Remove vserver')
+    parserVserverAdd.add_argument('--vserver', help='Vserver name')
+    parserVserverRm.add_argument('--vserver', help='Vserver name')
+    ####################################################################
 
-    parser.add_argument("--host", dest='host', help="IP or name of netscaler. Must be specified.")
-    parser.add_argument("--vserver", dest='vserver', help="Name of vserver you would like to work with.")
-    parser.add_argument("--server", dest='server', action='append', help="Name of server(s) you would like to work with.")
-    parser.add_argument("--service", dest='service', action='append', help="Name of service(s) you would like to work with.")
+    ####################################################################
+    # List subparser
+    parserList = subparser.add_parser('list', help='List objects')
+    parserList.add_argument('--vservers', help='List all vserver')
+    parserList.add_argument('--services', help='List all services')
+    parserList.add_argument('--servers', help='List all server')
+    ####################################################################
 
-    parser.add_argument("--mode", dest='mode', help="Add, Remove, Enable, or Disable vserver/server/service. Valid options are either \"aad\", \"rm\", \"enable\", \"disable\".",default=False)
 
 
 
+    #############################################################
+    parser.add_argument("--host", dest='host', required=True, help="IP or name of netscaler. Must be specified.")
 
     parser.add_argument("--wsdl", dest='wsdl', help="Name of WSDL. If not specified, will default to NSConfig-tagged.wsdl.", default="NSConfig-tagged.wsdl")
     parser.add_argument("--user", dest="user", help="User to login as.", default="***REMOVED***")
     parser.add_argument("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
     parser.add_argument("--passwd-file", dest="passwdFile", help="Where password is stored for user. Default is /etc/netscalertool.conf.", default="/etc/netscalertool.conf")
-    parser.add_argument("--list-vservers", action="store_true", dest='listVservers', help="List all vservers on NetScaler.")
-    parser.add_argument("--list-services", action="store_true", dest='listServices', help="List all services on NetScaler.")
     parser.add_argument("--primary-node", action="store_true", dest="primaryNode", help="List IP of current primary node", default=False)
     parser.add_argument("--surge-queue-size", action="store_true", dest="surgeQueueSize", help="Get current surge queue size of all servies bound to specified vserver. Must also specify --vserver.")
     parser.add_argument("--ignore-dns", action="store_true", dest="ignoreDns", help="Won't try to resolve server or vserver.", default=False)
     parser.add_argument("--debug", action="store_true", dest="debug", help="Shows what's going on.", default=False)
     parser.add_argument("--dryrun", action="store_true", dest="dryrun", help="Don't actually execute any commands.", default=False)
+
+    args = parser.parse_args()
     
-    (options, args) = parser.parse_args()
 
-    host = options.host
-    vserver = options.vserver
-    server = options.server
-    service = options.service
-    mode = options.mode
-    wsdl = options.wsdl
-    dryrun = options.dryrun
-    debug = options.debug
-    ignoreDns = options.ignoreDns
-    user = options.user
-    passwd = options.passwd
-    passwdFile = options.passwdFile
-    primaryNode = options.primaryNode
-    surgeQueueSize = options.surgeQueueSize
-    listVservers = options.listVservers
-    listServices = options.listServices
-
+    sys.exit(1)
 
     #########################
     # Checking user's input #
