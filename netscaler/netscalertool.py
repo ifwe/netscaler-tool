@@ -6,103 +6,66 @@ import netscalerapi
 import format
 import re
 import socket
+import subprocess
+
+# Used by argparse to see if the host specified is alive (pingable)
+# Maybe we can have it check the DB to see if the host is a netscaler as well.
+class isPingableAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        pingCmd = ['ping','-c','1',values]
+        #process = subprocess.Popen(pingCmd,stdout=open('/dev/null'),stderr=subprocess.STDOUT)
+        process = subprocess.Popen(pingCmd,stdout=open('/dev/null'),stderr=subprocess.PIPE)
+        status, error = process.communicate()
+
+        if error:
+            print error
+            return sys.exit(1)
+    
 
 def main():
-    
+
     # Created parser
     parser = argparse.ArgumentParser()
 
     # Created subparser 
     subparser = parser.add_subparsers()
 
-    #############################################################
-    # Creating server subparser
-    parserServerAdd = subparser.add_parser('add', help='Add server')
-    parserServerRm = subparser.add_parser('rm', help='Removeserver')
-    parserServerAdd.add_argument('--server', help='Server name')
-    parserServerRm.add_argument('--server', help='Server name')
-    ####################################################################
+    parserAdd = subparser.add_parser('add', help='sub-command for adding objects to the NetScaler') 
+    parserRm = subparser.add_parser('rm', help='sub-command for removing objects from the NetScaler')
+    parserShow = subparser.add_parser('show', help='sub-command for showing objects on the NetScaler')
 
+    parserAddGroup = parserAdd.add_mutually_exclusive_group(required=True)
+    parserAddGroup.add_argument('--vserver', dest='vserver', help='Vserver to add.') 
+    parserAddGroup.add_argument('--service', dest='service', help='Service to add.')
+    parserAddGroup.add_argument('--server', dest='server', help='Server to add.')
 
-    #############################################################
-    # Creating service subparser
-    parserServiceAdd = subparser.add_parser('add', help='Add service')
-    parserServiceRm = subparser.add_parser('rm', help='Remove service')
-    parserServiceAdd.add_argument('--service', help='Service name')
-    parserServiceRm.add_argument('--service', help='Service name')
-    ####################################################################
+    parserRmGroup = parserRm.add_mutually_exclusive_group(required=True)
+    parserRmGroup.add_argument('--vserver', dest='vserver', help='Vserver to remove.') 
+    parserRmGroup.add_argument('--service', dest='service', help='Service to remove.')
+    parserRmGroup.add_argument('--server', dest='server', help='Server to remove.')
 
-
-    ####################################################################
-    # Creating vserver subparser
-    parserVserverAdd = subparser.add_parser('add', help='Add vserver')
-    parserVserverRm = subparser.add_parser('rm', help='Remove vserver')
-    parserVserverAdd.add_argument('--vserver', help='Vserver name')
-    parserVserverRm.add_argument('--vserver', help='Vserver name')
-    ####################################################################
-
-    ####################################################################
-    # List subparser
-    parserList = subparser.add_parser('list', help='List objects')
-    parserList.add_argument('--vservers', help='List all vserver')
-    parserList.add_argument('--services', help='List all services')
-    parserList.add_argument('--servers', help='List all server')
-    ####################################################################
-
-
-
+    parserShowGroup = parserShow.add_mutually_exclusive_group(required=True)
+    parserShowGroup.add_argument('--vservers', dest='ShowVservers', action='store_true', help='Show all vserver.', default=False)
+    parserShowGroup.add_argument('--services', dest='ShowServices', action='store_true', help='Show all services.', default=False)
+    parserShowGroup.add_argument('--servers', dest='ShowVservers', action='store_true', help='Show all servers.', default=False)
+    parserShowGroup.add_argument('--vserver', dest='ShowVserver', metavar='VSERVER', help='Show a specific vserver.')
+    parserShowGroup.add_argument('--surge-queue-size', metavar='VSERVER', dest='surgeQueueSize', help='Get current surge queue size of all servies bound to specified vserver.')
+    parserShowGroup.add_argument('--primary-node', action='store_true', dest='primaryNode', help='List IP of current primary node.', default=False)
+    
 
     #############################################################
-    parser.add_argument("--host", dest='host', required=True, help="IP or name of netscaler. Must be specified.")
-
+    parser.add_argument("--host", dest='host', metavar='NETSCALER', action=isPingableAction, required=True, help="IP or name of NetScaler.")
     parser.add_argument("--wsdl", dest='wsdl', help="Name of WSDL. If not specified, will default to NSConfig-tagged.wsdl.", default="NSConfig-tagged.wsdl")
-    parser.add_argument("--user", dest="user", help="User to login as.", default="***REMOVED***")
+    parser.add_argument("--user", dest="user", help="NetScaler user account.", default="***REMOVED***")
     parser.add_argument("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
     parser.add_argument("--passwd-file", dest="passwdFile", help="Where password is stored for user. Default is /etc/netscalertool.conf.", default="/etc/netscalertool.conf")
-    parser.add_argument("--primary-node", action="store_true", dest="primaryNode", help="List IP of current primary node", default=False)
-    parser.add_argument("--surge-queue-size", action="store_true", dest="surgeQueueSize", help="Get current surge queue size of all servies bound to specified vserver. Must also specify --vserver.")
-    parser.add_argument("--ignore-dns", action="store_true", dest="ignoreDns", help="Won't try to resolve server or vserver.", default=False)
+    parser.add_argument("--ignore-dns", action="store_true", dest="ignoreDns", help="Won't try to resolve any netscaler objects.", default=False)
     parser.add_argument("--debug", action="store_true", dest="debug", help="Shows what's going on.", default=False)
-    parser.add_argument("--dryrun", action="store_true", dest="dryrun", help="Don't actually execute any commands.", default=False)
+    parser.add_argument("--dryrun", action="store_true", dest="dryrun", help="Dryrun.", default=False)
 
     args = parser.parse_args()
     
-
     sys.exit(1)
-
-    #########################
-    # Checking user's input #
-    #########################
-
-    # Checking to see if user specified netscaler (host).
-    if not host :
-        print "You need to specify a NetScaler with --host=HOST.\n"
-        parser.print_help()
-        return 1
-
-    # Checking to make sure the user specified vserver when wanting
-    # to find the surge queue length of a vserver.
-    if surgeQueueSize and not vserver:
-        print "You need to specify a vserver!\n"
-        parser.print_help()
-        return 1
-
-    # Checking to make sure the user specified a vserver when wanting
-    # to add/remove a vserver.
-    if mode and not vserver: 
-        print "You need to specify a vserver or service when specifying --mode!\n"
-        parser.print_help()
-        return 1
-
-    # Normalizing mode to lower case.
-    if mode:
-        mode = mode.lower()
-
-        # Checking if the user specified either add or rm with mode.
-        if mode != "add" and mode != "rm" and mode != "enable" and mode != "disable":
-            print "You need to specify either \"add\", \"rm\", \"enable\", or \"disable\" for mode!\n"
-            parser.print_help()
-            return 1
 
     # Let's check to see if vserver resolve.
     if vserver:
