@@ -21,6 +21,8 @@ class isPingableAction(argparse.Action):
             print error
             return sys.exit(1)
 
+        setattr(namespace, self.dest, values)
+
 class resolvesAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         if not ignoreDns:
