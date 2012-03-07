@@ -20,7 +20,19 @@ class isPingableAction(argparse.Action):
         if error:
             print error
             return sys.exit(1)
-    
+
+class resolvesAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        if not ignoreDns:
+            try:
+                for item in values:
+                    socket.gethostbyaddr(item)
+            except socket.gaierror, e:
+                print >> sys.stderr, "%s does not resolve." % (item)
+                return 1
+
+            setattr(namespace, self.dest, values)
+         
 
 def main():
 
@@ -33,24 +45,29 @@ def main():
     parserAdd = subparser.add_parser('add', help='sub-command for adding objects to the NetScaler') 
     parserRm = subparser.add_parser('rm', help='sub-command for removing objects from the NetScaler')
     parserShow = subparser.add_parser('show', help='sub-command for showing objects on the NetScaler')
+    parserCmp = subparser.add_parser('compare', help='sub-command for showing objects on the NetScaler')
 
     parserAddGroup = parserAdd.add_mutually_exclusive_group(required=True)
-    parserAddGroup.add_argument('--vserver', dest='vserver', help='Vserver to add.') 
-    parserAddGroup.add_argument('--service', dest='service', help='Service to add.')
-    parserAddGroup.add_argument('--server', dest='server', help='Server to add.')
+    parserAddGroup.add_argument('--vserver', dest='addVserver', help='Vserver to add.') 
+    parserAddGroup.add_argument('--service', dest='addService', help='Service to add.')
+    parserAddGroup.add_argument('--server', dest='addServer', help='Server to add.')
 
     parserRmGroup = parserRm.add_mutually_exclusive_group(required=True)
-    parserRmGroup.add_argument('--vserver', dest='vserver', help='Vserver to remove.') 
-    parserRmGroup.add_argument('--service', dest='service', help='Service to remove.')
-    parserRmGroup.add_argument('--server', dest='server', help='Server to remove.')
+    parserRmGroup.add_argument('--vserver', dest='rmVserver', help='Vserver to remove.') 
+    parserRmGroup.add_argument('--service', dest='rmService', help='Service to remove.')
+    parserRmGroup.add_argument('--server', dest='rmServer', help='Server to remove.')
 
     parserShowGroup = parserShow.add_mutually_exclusive_group(required=True)
-    parserShowGroup.add_argument('--vservers', dest='ShowVservers', action='store_true', help='Show all vserver.', default=False)
-    parserShowGroup.add_argument('--services', dest='ShowServices', action='store_true', help='Show all services.', default=False)
-    parserShowGroup.add_argument('--servers', dest='ShowVservers', action='store_true', help='Show all servers.', default=False)
-    parserShowGroup.add_argument('--vserver', dest='ShowVserver', metavar='VSERVER', help='Show a specific vserver.')
+    parserShowGroup.add_argument('--vservers', dest='showVservers', action='store_true', help='Show all vserver.', default=False)
+    parserShowGroup.add_argument('--services', dest='showServices', action='store_true', help='Show all services.', default=False)
+    parserShowGroup.add_argument('--servers', dest='showVservers', action='store_true', help='Show all servers.', default=False)
+    parserShowGroup.add_argument('--vserver', dest='showVserver', metavar='VSERVER', help='Show a specific vserver.')
     parserShowGroup.add_argument('--surge-queue-size', metavar='VSERVER', dest='surgeQueueSize', help='Get current surge queue size of all servies bound to specified vserver.')
     parserShowGroup.add_argument('--primary-node', action='store_true', dest='primaryNode', help='List IP of current primary node.', default=False)
+
+    parserCmpGroup = parserCmp.add_mutually_exclusive_group(required=True)
+    parserCmpGroup.add_argument('--vservers', nargs='+', dest='cmpVservers', help='Compare vserver setups.') 
+    parserCmpGroup.add_argument('--services', nargs='+', dest='cmpServices', help='Compare service setups.')
     
 
     #############################################################
@@ -64,58 +81,15 @@ def main():
     parser.add_argument("--dryrun", action="store_true", dest="dryrun", help="Dryrun.", default=False)
 
     args = parser.parse_args()
-    
-    sys.exit(1)
 
-    # Let's check to see if vserver resolve.
-    if vserver:
-        if not ignoreDns:
-            try:
-                socket.gethostbyaddr(vserver)
-            except socket.gaierror, e:
-                print >> sys.stderr, "Vserver %s does not resolve. Please create DNS entry and try again.\n" % (vserver)
-                return 1
+    host = args.host
+    wsdl = args.wsdl
+    user = args.user
+    passwdFile = args.passwdFile
+    debug = args.debug
+    dryrun = args.dryrun
+    ignoreDns = args.ignoreDns
 
-    # Let's check to see if service(s) resolve.
-    if service:
-        for entry in service:
-            if entry.find('['):
-                start = entry.find('[')
-                middle = entry.find('-')
-                end = entry.find(']')
-                firstNumber = entry[(start+1):middle] 
-                secondNumber = entry[(middle+1):end] 
-        
-            print range(firstNumber,secondNumber)
-
-    # Let's check to see if servers resolve.
-    if server:
-        serverList = {}
-        for entry in server:
-            if entry.find('['):
-                start = entry.find('[')
-                middle = entry.find('-')
-                end = entry.find(']')
-                firstNumber = int(entry[(start+1):middle])
-                secondNumber = int(entry[(middle+1):end])
-                hostNameBase = entry[0:start]
-            
-            for number in range(firstNumber,secondNumber+1):
-                hostName = hostNameBase + str(number)
-                serverList[hostName] = ''
-
-        print serverList
-
-    # Can't work on service(s) and server(s) at the same time
-    if service and server:
-        print "You can specify either server or service, but not both!\n"
-        parser.print_help()
-        return 1
-
-    ################################
-    # End of checking user's input #
-    ################################
-        
     # fetching password from file
     try:
         passwd = netscalerapi.fetchPasswd(passwdFile)
@@ -137,13 +111,32 @@ def main():
     # Creating a client instance that we can use during
     # the rest of this script to interact with.
     try:
-        client = getConnected(host,wsdl,user,passwd)
+        client = netscalerapi.getConnected(host,wsdl,user,passwd)
     except RuntimeError, e:
         print >> sys.stderr, "Problem creating client instance.\n%s" % (e)
         return 1
 
+    ############
+    #  Adding  #
+    ############
+
+
+    ##############
+    #  Removing  #
+    ##############
+
+
+    ###############
+    #  Comparing  #    
+    ###############
+
+
+    #############
+    #  Showing  #
+    #############
+
     # Fetching list of all vservers on specified NetScaler.
-    if listVservers:
+    if args.showVservers:
         try:
             output = getListVservers(client)
         except RuntimeError, e:
@@ -162,7 +155,7 @@ def main():
         return 0
 
     # Fetching list of all servies on specified NetScaler.
-    if listServices:
+    if args.showServices:
         try:
             output = getListServices(client)
         except RuntimeError, e:
@@ -182,7 +175,7 @@ def main():
 
 
     # Checking for failover status
-    if primaryNode:
+    if arg.primaryNode:
         command = "gethanode"
         try:
             output = netscalerapi.runCmd(client,command)
@@ -204,7 +197,7 @@ def main():
         return 0 
 
     # Fetching surge queue size for specified vserver
-    if surgeQueueSize:
+    if args.surgeQueueSize:
         try:
             output = getSurgeQueueSize(client,vserver)
         except RuntimeError, e:
@@ -224,24 +217,6 @@ def main():
         except RuntimeError, e:
             print >> sys.stderr, "There was a problem logging out.", e
         return 0
-
-    # Adding vserver.
-    if mode == 'add' and vserver:
-        # Let's check to see if a vserver with that name already exists.
-        if status:
-            print >> sys.stderr, "%s already exists. Please pick a different name for vserver!\n" % (vserver)
-            return 1
-
-        # Let's check if there are server entries.
-        try:
-            socket.gethostbyaddr(server)
-        except socket.gaierror, e:
-            print >> sys.stderr, "Server %s does not resolve. Please create DNS entry for %s and try again.\n" % (server,server)
-            return 1
-
-    # Removing vserver.
-    if mode == 'rm' and vserver:
-        pass
 
     # Logging out of NetScaler.
     try:
