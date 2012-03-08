@@ -81,6 +81,15 @@ def getServices(client,vserver):
         e = "Vserver %s doesn't have any service bound to it. You can probably delete it." % (vserver)
         raise RuntimeError(e)
 
+def getNsconfig(client):
+    command = "getnsconfig"
+
+    try:
+        output = netscalerapi.runCmd(client,command)
+    except RuntimeError, e:
+        raise RuntimeError(e)
+
+    return output
 
 def getStatServices(client,service):
     command = "statservice"
@@ -159,13 +168,12 @@ def main():
     parserShowGroup.add_argument('--vserver', dest='showVserver', metavar='VSERVER', help='Show a specific vserver.')
     parserShowGroup.add_argument('--surge-queue-size', metavar='VSERVER', dest='surgeQueueSize', help='Get current surge queue size of all servies bound to specified vserver.')
     parserShowGroup.add_argument('--primary-node', action='store_true', dest='primaryNode', help='List IP of current primary node.', default=False)
+    parserShowGroup.add_argument('--saved-config', action='store_true', dest='showSavedConfig', help='Shows saved ns.conf', default=False)
 
     parserCmpGroup = parserCmp.add_mutually_exclusive_group(required=True)
     parserCmpGroup.add_argument('--vservers', nargs='+', dest='cmpVservers', help='Compare vserver setups.') 
     parserCmpGroup.add_argument('--services', nargs='+', dest='cmpServices', help='Compare service setups.')
     
-
-    #############################################################
     parser.add_argument("--host", dest='host', metavar='NETSCALER', action=isPingableAction, required=True, help="IP or name of NetScaler.")
     parser.add_argument("--wsdl", dest='wsdl', help="Name of WSDL. If not specified, will default to NSConfig-tagged.wsdl.", default="NSConfig-tagged.wsdl")
     parser.add_argument("--user", dest="user", help="NetScaler user account.", default="***REMOVED***")
@@ -175,6 +183,7 @@ def main():
     parser.add_argument("--debug", action="store_true", dest="debug", help="Shows what's going on.", default=False)
     parser.add_argument("--dryrun", action="store_true", dest="dryrun", help="Dryrun.", default=False)
 
+    # Getting arguments
     args = parser.parse_args()
 
     host = args.host
@@ -247,10 +256,9 @@ def main():
             netscalerapi.logout(client)
         except RuntimeError, e:
             print >> sys.stderr, "There was a problem logging out.", e
-        return 0
 
     # Fetching list of all servies on specified NetScaler.
-    if args.showServices:
+    elif args.showServices:
         try:
             output = getListServices(client)
         except RuntimeError, e:
@@ -266,11 +274,9 @@ def main():
             netscalerapi.logout(client)
         except RuntimeError, e:
             print >> sys.stderr, "There was a problem logging out.", e
-        return 0
-
 
     # Checking for failover status
-    if args.primaryNode:
+    elif args.primaryNode:
         command = "gethanode"
         try:
             output = netscalerapi.runCmd(client,command)
@@ -289,10 +295,9 @@ def main():
             netscalerapi.logout(client)
         except RuntimeError, e:
             print >> sys.stderr, "There was a problem logging out.", e
-        return 0 
 
     # Fetching surge queue size for specified vserver
-    if args.surgeQueueSize:
+    elif args.surgeQueueSize:
         try:
             output = getSurgeQueueSize(client,vserver)
         except RuntimeError, e:
@@ -311,7 +316,15 @@ def main():
             netscalerapi.logout(client)
         except RuntimeError, e:
             print >> sys.stderr, "There was a problem logging out.", e
-        return 0
+
+    elif args.showSavedConfig:
+        try:
+            output = getNsconfig(client)
+        except RuntimeError, e:
+            print >> sys.stderr, "There was a problem getting the saved ns.conf.", e
+            return 1
+
+        print output
 
     # Logging out of NetScaler.
     try:
