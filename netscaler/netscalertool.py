@@ -270,7 +270,7 @@ def main():
 
 
     # Checking for failover status
-    if arg.primaryNode:
+    if args.primaryNode:
         command = "gethanode"
         try:
             output = netscalerapi.runCmd(client,command)
