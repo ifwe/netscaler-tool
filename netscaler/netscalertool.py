@@ -34,6 +34,100 @@ class resolvesAction(argparse.Action):
                 return 1
 
             setattr(namespace, self.dest, values)
+
+def getListServices(client):
+    command = "getservice"
+    list = []
+
+    try:
+        output = netscalerapi.runCmd(client,command)
+    except RuntimeError, e:
+        raise RuntimeError(e)
+
+    for entry in output:
+        list.append(entry.name)
+
+    list.sort()
+    return list
+
+def getListVservers(client):
+    command = "getlbvserver"
+    list = []
+
+    try:
+        output = netscalerapi.runCmd(client,command)
+    except RuntimeError, e:
+        raise RuntimeError(e)
+
+    for entry in output:
+        list.append(entry.name)
+
+    list.sort()
+    return list
+
+
+def getServices(client,vserver):
+    command = "getlbvserver"
+    arg = {'name':vserver}
+
+    try:
+        output = netscalerapi.runCmd(client,command,**arg)
+    except RuntimeError, e:
+        raise RuntimeError(e)
+
+    try:
+        return output[0].servicename
+    except AttributeError:
+        e = "Vserver %s doesn't have any service bound to it. You can probably delete it." % (vserver)
+        raise RuntimeError(e)
+
+
+def getStatServices(client,service):
+    command = "statservice"
+    arg = {'name':service}
+
+    try:
+        output = netscalerapi.runCmd(client,command,**arg)
+    except RuntimeError, e:
+        raise RuntimeError(e)
+
+    return output[0].surgecount
+
+def getSurgeQueueSize(client,vserver):
+    msg = ""
+    wsdl = "NSStat.wsdl"
+    wsdlURL = "http://%s/api/%s" % (host,wsdl)
+    surgeCountTotal = 0
+
+    try:
+        output = getServices(client,vserver)
+    except RuntimeError, e:
+        raise RuntimeError(e)
+
+    # Since we got the services bound to the vserver in question, we now
+    # need to get surge queue count for each service, but that requires we
+    # change wsdl files.
+    try:
+        client = getConnected(host,wsdl,user,passwd)
+    except RuntimeError, e:
+        raise RuntimeError(e)
+
+    # Going through the list of services to get surge count.
+    for service in output:
+        if debug:
+            print "Fetching surge queue count for %s" % (service)
+
+        try:
+            output = getStatServices(client,service)
+        except RuntimeError, e:
+            raise RuntimeError(e)
+        
+        if debug:
+            print "Surge count for %s: %s\n" % (service,output)
+
+        surgeCountTotal =+ int(output)
+
+    return surgeCountTotal
          
 
 def main():
@@ -62,7 +156,6 @@ def main():
     parserShowGroup = parserShow.add_mutually_exclusive_group(required=True)
     parserShowGroup.add_argument('--vservers', dest='showVservers', action='store_true', help='Show all vserver.', default=False)
     parserShowGroup.add_argument('--services', dest='showServices', action='store_true', help='Show all services.', default=False)
-    parserShowGroup.add_argument('--servers', dest='showVservers', action='store_true', help='Show all servers.', default=False)
     parserShowGroup.add_argument('--vserver', dest='showVserver', metavar='VSERVER', help='Show a specific vserver.')
     parserShowGroup.add_argument('--surge-queue-size', metavar='VSERVER', dest='surgeQueueSize', help='Get current surge queue size of all servies bound to specified vserver.')
     parserShowGroup.add_argument('--primary-node', action='store_true', dest='primaryNode', help='List IP of current primary node.', default=False)
