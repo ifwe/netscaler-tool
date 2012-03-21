@@ -90,7 +90,9 @@ def getNsConfig(client):
     except RuntimeError, e:
         raise RuntimeError(e)
 
-    return output[0][0]
+    output = '\n'.join(output[0].textblob.split('\\n')).strip('"') 
+
+    return output
 
 def getStatServices(client,service):
     command = "statservice"
@@ -321,9 +323,7 @@ def main():
             print >> sys.stderr, "There was a problem getting the saved ns.conf.", e
             return 1
 
-        #print output
-        a =  output.splitlines()
-        print a
+        print output
 
     # Logging out of NetScaler.
     try:
