@@ -67,7 +67,7 @@ def getListVservers(client):
 
 
 def getServices(client,vserver):
-    command = "getlbvserver"
+    command = "getservice"
     arg = {'name':vserver}
 
     try:
@@ -75,21 +75,22 @@ def getServices(client,vserver):
     except RuntimeError, e:
         raise RuntimeError(e)
 
+    print output[0]
     try:
         return output[0].servicename
     except AttributeError:
         e = "Vserver %s doesn't have any service bound to it. You can probably delete it." % (vserver)
         raise RuntimeError(e)
 
-def getNsconfig(client):
-    command = "getnsconfig"
+def getNsConfig(client):
+    command = "getnsns"
 
     try:
         output = netscalerapi.runCmd(client,command)
     except RuntimeError, e:
         raise RuntimeError(e)
 
-    return output
+    return output[0][0]
 
 def getStatServices(client,service):
     command = "statservice"
@@ -168,7 +169,7 @@ def main():
     parserShowGroup.add_argument('--vserver', dest='showVserver', metavar='VSERVER', help='Show a specific vserver.')
     parserShowGroup.add_argument('--surge-queue-size', metavar='VSERVER', dest='surgeQueueSize', help='Get current surge queue size of all servies bound to specified vserver.')
     parserShowGroup.add_argument('--primary-node', action='store_true', dest='primaryNode', help='List IP of current primary node.', default=False)
-    parserShowGroup.add_argument('--saved-config', action='store_true', dest='showSavedConfig', help='Shows saved ns.conf', default=False)
+    parserShowGroup.add_argument('--saved-config', action='store_true', dest='getNsConfig', help='Shows saved ns.conf', default=False)
 
     parserCmpGroup = parserCmp.add_mutually_exclusive_group(required=True)
     parserCmpGroup.add_argument('--vservers', nargs='+', dest='cmpVservers', help='Compare vserver setups.') 
@@ -252,10 +253,6 @@ def main():
             return 1
 
         format.printList(output)
-        try:
-            netscalerapi.logout(client)
-        except RuntimeError, e:
-            print >> sys.stderr, "There was a problem logging out.", e
 
     # Fetching list of all servies on specified NetScaler.
     elif args.showServices:
@@ -317,14 +314,16 @@ def main():
         except RuntimeError, e:
             print >> sys.stderr, "There was a problem logging out.", e
 
-    elif args.showSavedConfig:
+    elif args.getNsConfig:
         try:
-            output = getNsconfig(client)
+            output = getNsConfig(client)
         except RuntimeError, e:
             print >> sys.stderr, "There was a problem getting the saved ns.conf.", e
             return 1
 
-        print output
+        #print output
+        a =  output.splitlines()
+        print a
 
     # Logging out of NetScaler.
     try:
