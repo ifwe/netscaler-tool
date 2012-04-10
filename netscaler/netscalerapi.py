@@ -1,6 +1,7 @@
 import logging
-from suds.client import Client, WebFault
-from suds.xsd.doctor import Import, ImportDoctor
+import json
+import httplib2
+import urllib
 
 # Register suds.client as a console handler... and disable it.
 # This is necessary because sometimes suds.client can be chatty
@@ -26,47 +27,30 @@ def fetchPasswd(passwdFile):
     return passwd
 
 
-def connection(host,wsdl):
-    wsdlUrl = "http://%s/api/%s" % (host,wsdl)
-    soapUrl = "http://%s/soap" % (host)
+def getConnected(host,user,passwd,debug):
+    #set the headers and the base URL
+    headers = {'Content-type': 'application/x-www-form-urlencoded'}
+    url = "http://%s/nitro/v1/config/" % (host)
 
-    # fix missing types with ImportDoctor, otherwise we get:
-    # suds.TypeNotFound: Type not found: '(Array, # http://schemas.xmlsoap.org/soap/encoding/, )
-    _import = Import('http://schemas.xmlsoap.org/soap/encoding/')
-    _import.filter.add("urn:NSConfig")
-    doctor = ImportDoctor(_import)
+    #contruct the payload with URL encoding
+    payload = {"object":{"login":{"username":user,"password":passwd}}}
+    payload_encoded = urllib.urlencode(payload)
 
-    try:
-        client = Client(wsdlUrl, doctor=doctor, location=soapUrl, cache=None)
-    except Exception, e: 
-        raise RuntimeError(e)
+    #create a HTTP object, and use it to submit a POST request
+    http = httplib2.Http()
+    response, content = http.request(url, 'POST', body=payload_encoded, headers=headers)
 
-    # Returning client object
-    return client
+    if debug:
+        #for debug purposes, print out the headers and the content of the response
+        print json.dumps(response, sort_keys=False, indent=4)
+        print json.dumps(content, sort_keys=False, indent=4)
+
+    data = json.loads(content)
+    sessionID = data["sessionid"]
+
+    # Returning sessionID
+    return sessionID
     
-
-def getConnected(host,wsdl,user,passwd):
-    try:
-        client = connection(host,wsdl)
-    except RuntimeError, e:
-        raise RuntimeError(e)
-
-    # Logging into NetScaler.
-    try:
-        login(client,user,passwd)
-    except RuntimeError, e:
-        raise RuntimeError(e)
-
-    return client
-
-
-def login(client, user, passwd):
-    output = client.service.login(username=user, password=passwd)
-    if output.rc != 0:
-        raise RuntimeError(output.message)
-    else:
-        return output.message
-
 
 def logout(client):
     output = client.service.logout() 
@@ -158,7 +142,7 @@ def getSurgeQueueSize(client,vserver):
     # need to get surge queue count for each service, but that requires we
     # change wsdl files.
     try:
-        client = getConnected(host,wsdl,user,passwd)
+        client = getConnected(host,user,passwd)
     except RuntimeError, e:
         raise RuntimeError(e)
 

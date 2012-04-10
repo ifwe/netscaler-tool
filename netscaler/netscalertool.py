@@ -120,7 +120,7 @@ def getSurgeQueueSize(client,vserver):
     # need to get surge queue count for each service, but that requires we
     # change wsdl files.
     try:
-        client = getConnected(host,wsdl,user,passwd)
+        client = getConnected(host,user,passwd,debug)
     except RuntimeError, e:
         raise RuntimeError(e)
 
@@ -153,7 +153,7 @@ def main():
     parserAdd = subparser.add_parser('add', help='sub-command for adding objects to the NetScaler') 
     parserRm = subparser.add_parser('rm', help='sub-command for removing objects from the NetScaler')
     parserShow = subparser.add_parser('show', help='sub-command for showing objects on the NetScaler')
-    parserCmp = subparser.add_parser('compare', help='sub-command for showing objects on the NetScaler')
+    parserCmp = subparser.add_parser('compare', help='sub-command for comparing objects on the NetScaler')
 
     parserAddGroup = parserAdd.add_mutually_exclusive_group(required=True)
     parserAddGroup.add_argument('--vserver', dest='addVserver', help='Vserver to add.') 
@@ -206,22 +206,24 @@ def main():
 
     # Showing user flags and their values
     if debug:
-        print "Using the following variables:"
-        for option in dir(options):
+        print "Using the following args:"
+        for arg in dir(args):
             regex = "(^_{1,2}|^read_file|^read_module|^ensure_value)"
-            if re.match(regex,option):
+            if re.match(regex,arg):
                 continue
             else:
-                print "\t%s: %s" % (option,getattr(options,option))
+                print "\t%s: %s" % (arg,getattr(args,arg))
         print "\n"
 
     # Creating a client instance that we can use during
     # the rest of this script to interact with.
     try:
-        client = netscalerapi.getConnected(host,wsdl,user,passwd)
+        client = netscalerapi.getConnected(host,user,passwd,debug)
     except RuntimeError, e:
         print >> sys.stderr, "Problem creating client instance.\n%s" % (e)
         return 1
+
+    sys.exit(1)
 
     ############
     #  Adding  #
