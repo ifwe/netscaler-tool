@@ -50,14 +50,13 @@ def getListServices(client):
     list.sort()
     return list
 
-def getListVservers(client):
-    command = "getlbvserver"
+def getListVservers(host,sessionID):
+    object = "lbvserver"
     list = []
 
-    try:
-        output = netscalerapi.runCmd(client,command)
-    except RuntimeError, e:
-        raise RuntimeError(e)
+    output = netscalerapi.getObject(host,sessionID,object)
+
+    print output
 
     for entry in output:
         list.append(entry.name)
@@ -120,7 +119,7 @@ def getSurgeQueueSize(client,vserver):
     # need to get surge queue count for each service, but that requires we
     # change wsdl files.
     try:
-        client = getConnected(host,user,passwd,debug)
+        client = login(host,user,passwd,debug)
     except RuntimeError, e:
         raise RuntimeError(e)
 
@@ -218,12 +217,10 @@ def main():
     # Creating a client instance that we can use during
     # the rest of this script to interact with.
     try:
-        client = netscalerapi.getConnected(host,user,passwd,debug)
+        sessionID = netscalerapi.login(host,user,passwd,debug)
     except RuntimeError, e:
         print >> sys.stderr, "Problem creating client instance.\n%s" % (e)
         return 1
-
-    sys.exit(1)
 
     ############
     #  Adding  #
@@ -247,7 +244,7 @@ def main():
     # Fetching list of all vservers on specified NetScaler.
     if args.showVservers:
         try:
-            output = getListVservers(client)
+            output = getListVservers(host,sessionID)
         except RuntimeError, e:
             print >> sys.stderr, "Problem while trying to get list of vservers on %s.\n%s" % (host,e)
             try:
@@ -257,6 +254,8 @@ def main():
             return 1
 
         format.printList(output)
+
+        return 0
 
     # Fetching list of all servies on specified NetScaler.
     elif args.showServices:

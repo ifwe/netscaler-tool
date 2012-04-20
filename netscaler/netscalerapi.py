@@ -2,6 +2,7 @@ import logging
 import json
 import httplib2
 import urllib
+import sys
 
 # Register suds.client as a console handler... and disable it.
 # This is necessary because sometimes suds.client can be chatty
@@ -27,7 +28,7 @@ def fetchPasswd(passwdFile):
     return passwd
 
 
-def getConnected(host,user,passwd,debug):
+def login(host,user,passwd,debug):
     #set the headers and the base URL
     headers = {'Content-type': 'application/x-www-form-urlencoded'}
     url = "http://%s/nitro/v1/config/" % (host)
@@ -60,12 +61,24 @@ def logout(client):
         return output.message
 
 
-def runCmd(client, command, **args):
-    output = getattr(client.service, command)(**args)
-    if output.rc != 0:
-        raise RuntimeError(output.message)
-    else:
-        return output.List
+def getObject(host, sessionID, object):
+    headers = {'Content-type': 'application/x-www-form-urlencoded', 'Cookie.sessionid': sessionID}
+    url = "http://%s/nitro/v1/config/%s" % (host, object)
+
+    #create a HTTP object, and use it to submit a GET request
+    http = httplib2.Http()
+    response, content = http.request(url, 'GET', headers=headers)
+
+    if response.status != "200":
+        raise RuntimeError(content)
+    
+    #print response
+    sys.exit(0)
+
+
+def setObject(host, sessionID, object, value):
+    headers = {'Content-type': 'application/x-www-form-urlencoded', 'Cookie.sessionid': sessionID}
+    pass
 
 
 def getAllServices(client):
