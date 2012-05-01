@@ -52,17 +52,18 @@ def getListServices(client):
 
 def getListVservers(host,sessionID):
     object = "lbvserver"
-    list = []
+    listOfVservers = []
 
-    output = netscalerapi.getObject(host,sessionID,object)
+    try:
+        output = netscalerapi.getObject(host,sessionID,object)
+    except RuntimeError, e:
+        raise RuntimeError(e)
 
-    print output
+    for vserver in output['lbvserver']:
+        listOfVservers.append(vserver['name'])
 
-    for entry in output:
-        list.append(entry.name)
-
-    list.sort()
-    return list
+    listOfVservers.sort()
+    return listOfVservers
 
 
 def getServices(client,vserver):
@@ -243,7 +244,6 @@ def main():
             output = getListVservers(host,sessionID)
         except RuntimeError, e:
             print >> sys.stderr, "Problem while trying to get list of vservers on %s.\n%s" % (host,e)
-            sys.exit(1)
             try:
                 netscalerapi.logout(client)
             except RuntimeError, e:

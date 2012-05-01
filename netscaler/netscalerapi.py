@@ -62,18 +62,23 @@ def logout(client):
 
 
 def getObject(host, sessionID, object):
-    headers = {'Content-type': 'application/x-www-form-urlencoded', 'Cookie.sessionid': sessionID}
+
+    listOfVservers = []
+
+    headers = {'Content-type': 'application/x-www-form-urlencoded', 'Cookie': 'sessionid='+sessionID}
     url = "http://%s/nitro/v1/config/%s" % (host, object)
 
     #create a HTTP object, and use it to submit a GET request
     http = httplib2.Http()
     response, content = http.request(url, 'GET', headers=headers)
 
-    if response.status != "200":
+    data = json.loads(content)
+    errorcode = data["errorcode"]
+
+    if response.status != 200 or errorcode != 0:
         raise RuntimeError(content)
-    
-    #print response
-    sys.exit(0)
+
+    return data
 
 
 def setObject(host, sessionID, object, value):
