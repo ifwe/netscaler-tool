@@ -106,8 +106,6 @@ def getStatServices(client,service):
 
 def getSurgeQueueSize(client,vserver):
     msg = ""
-    wsdl = "NSStat.wsdl"
-    wsdlURL = "http://%s/api/%s" % (host,wsdl)
     surgeCountTotal = 0
 
     try:
@@ -177,7 +175,6 @@ def main():
     parserCmpGroup.add_argument('--services', nargs='+', dest='cmpServices', help='Compare service setups.')
     
     parser.add_argument("--host", dest='host', metavar='NETSCALER', action=isPingableAction, required=True, help="IP or name of NetScaler.")
-    parser.add_argument("--wsdl", dest='wsdl', help="Name of WSDL. If not specified, will default to NSConfig-tagged.wsdl.", default="NSConfig-tagged.wsdl")
     parser.add_argument("--user", dest="user", help="NetScaler user account.", default="***REMOVED***")
     parser.add_argument("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
     parser.add_argument("--passwd-file", dest="passwdFile", help="Where password is stored for user. Default is /etc/netscalertool.conf.", default="/etc/netscalertool.conf")
@@ -189,7 +186,6 @@ def main():
     args = parser.parse_args()
 
     host = args.host
-    wsdl = args.wsdl
     user = args.user
     passwdFile = args.passwdFile
     debug = args.debug
@@ -247,6 +243,7 @@ def main():
             output = getListVservers(host,sessionID)
         except RuntimeError, e:
             print >> sys.stderr, "Problem while trying to get list of vservers on %s.\n%s" % (host,e)
+            sys.exit(1)
             try:
                 netscalerapi.logout(client)
             except RuntimeError, e:
