@@ -23,6 +23,7 @@ class isPingableAction(argparse.Action):
 
         setattr(namespace, self.dest, values)
 
+
 class resolvesAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         if not ignoreDns:
@@ -34,6 +35,23 @@ class resolvesAction(argparse.Action):
                 return 1
 
             setattr(namespace, self.dest, values)
+
+
+def fetchPasswd(passwdFile):
+    try:
+        f = open(passwdFile,'r')
+    except IOError, e:
+        raise IOError(e)
+
+    # Reading contents of passwd file.
+    passwd = f.readline().strip('\n')
+
+    # Closing file handle
+    f.close()
+
+    # Returning passwd
+    return passwd
+
 
 def getListServices(client):
     command = "getservice"

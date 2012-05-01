@@ -4,32 +4,15 @@ import httplib2
 import urllib
 import sys
 
-# Register suds.client as a console handler... and disable it.
-# This is necessary because sometimes suds.client can be chatty
-# with warnings and it confuses end-users.
-logging.basicConfig(level=logging.ERROR)
-logging.getLogger('suds.client').setLevel(logging.ERROR)
-logging.disable(logging.ERROR)
-
 class Client(object):
 
-    def fetchPasswd(passwdFile):
-        try:
-            f = open(passwdFile,'r')
-        except IOError, e:
-            raise IOError(e)
-
-        # Reading contents of passwd file.
-        passwd = f.readline().strip('\n')
-
-        # Closing file handle
-        f.close()
-
-        # Returning passwd
-        return passwd
+    def __init__(self,host,user,passwd):
+        self.host = host
+        self.user = user
+        self.passwd = passwd
 
 
-    def login(host,user,passwd,debug):
+    def login(self,self.host,self.user,self.passwd):
         #set the headers and the base URL
         headers = {'Content-type': 'application/x-www-form-urlencoded'}
         url = "http://%s/nitro/v1/config/" % (host)
@@ -62,9 +45,7 @@ class Client(object):
             return output.message
 
 
-    def getObject(host, sessionID, object):
-
-        listOfVservers = []
+    def getObject(self.host, sessionID, object):
 
         headers = {'Content-type': 'application/x-www-form-urlencoded', 'Cookie': 'sessionid='+sessionID}
         url = "http://%s/nitro/v1/config/%s" % (host, object)
@@ -80,117 +61,6 @@ class Client(object):
             raise RuntimeError(content)
 
         return data
-
-
-    def setObject(host, sessionID, object, value):
-        headers = {'Content-type': 'application/x-www-form-urlencoded', 'Cookie.sessionid': sessionID}
-        pass
-
-
-    def getAllServices(client):
-        command = "getservice"
-        list = []
-
-        try:
-            output = runCmd(client,command)
-        except RuntimeError, e:
-            raise RuntimeError(e)
-
-        for entry in output:
-            list.append(entry.name)
-
-        list.sort()
-        return list
-
-
-    def getAllVservers(client):
-        command = "getlbvserver"
-        list = []
-
-        try:
-            output = runCmd(client,command)
-        except RuntimeError, e:
-            raise RuntimeError(e)
-
-        for entry in output:
-            list.append(entry.name)
-
-        list.sort()
-        return list
-
-
-    def getServicesBound(client,vserver):
-        command = "getlbvserver"
-        arg = {'name':vserver}
-
-        try:
-            output = runCmd(client,command,**arg)
-        except RuntimeError, e:
-            raise RuntimeError(e)
-
-        try:
-            return output[0].servicename
-        except AttributeError:
-            e = "Vserver %s doesn't have any service bound to it. You can probably delete it." % (vserver)
-            raise RuntimeError(e)
-
-
-    def getStatServices(client,service):
-        command = "statservice"
-        arg = {'name':service}
-
-        try:
-            output = runCmd(client,command,**arg)
-        except RuntimeError, e:
-            raise RuntimeError(e)
-
-        return output[0].surgecount
-
-
-    def getSurgeQueueSize(client,vserver):
-        wsdl = "NSStat.wsdl"
-        wsdlURL = "http://%s/api/%s" % (host,wsdl)
-        surgeCountTotal = 0
-
-        try:
-            services = getServicesBound(client,vserver)
-        except RuntimeError, e:
-            raise RuntimeError(e)
-
-        # Since we got the services bound to the vserver in question, we now
-        # need to get surge queue count for each service, but that requires we
-        # change wsdl files.
-        try:
-            client = getConnected(host,user,passwd)
-        except RuntimeError, e:
-            raise RuntimeError(e)
-
-        # Going through the list of services to get surge count.
-        for service in services:
-            if debug:
-                print "Fetching surge queue count for %s" % (service)
-
-            try:
-                output = getStatServices(client,service)
-            except RuntimeError, e:
-                raise RuntimeError(e)
-
-            if debug:
-                print "Surge count for %s: %s\n" % (service,output)
-
-            surgeCountTotal =+ int(output)
-
-        return surgeCountTotal
-
-
-    def getVserver(client, vserver):
-        command = "getlbvserver"
-        arg = {'name':vserver}
-
-        try:
-            output = runCmd(client,command,**arg)
-        except RuntimeError, e:
-            raise RuntimeError(e)
 
 
     def saveConfig(client):
