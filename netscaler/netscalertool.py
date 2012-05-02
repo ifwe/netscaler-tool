@@ -68,12 +68,12 @@ def getListServices(client):
     list.sort()
     return list
 
-def getListVservers(host,sessionID):
+def getListVservers(client):
     object = "lbvserver"
     listOfVservers = []
 
     try:
-        output = netscalerapi.getObject(host,sessionID,object)
+        output = client.getObject(object)
     except RuntimeError, e:
         raise RuntimeError(e)
 
@@ -213,7 +213,7 @@ def main():
 
     # fetching password from file
     try:
-        passwd = netscalerapi.fetchPasswd(passwdFile)
+        passwd = fetchPasswd(passwdFile)
     except IOError, e:
         print >> sys.stderr, e
         return 1 
@@ -230,11 +230,17 @@ def main():
         print "\n"
 
     # Creating a client instance that we can use during
-    # the rest of this script to interact with.
+    # the rest of this program.
     try:
-        sessionID = netscalerapi.login(host,user,passwd,debug)
+        client = netscalerapi.Client(host,user,passwd,debug)
     except RuntimeError, e:
         print >> sys.stderr, "Problem creating client instance.\n%s" % (e)
+        return 1
+
+    # Let's login
+    try:
+        sessionID = client.login() 
+    except RuntimeError, e:
         return 1
 
     ############
@@ -259,7 +265,7 @@ def main():
     # Fetching list of all vservers on specified NetScaler.
     if args.showVservers:
         try:
-            output = getListVservers(host,sessionID)
+            output = getListVservers(client)
         except RuntimeError, e:
             print >> sys.stderr, "Problem while trying to get list of vservers on %s.\n%s" % (host,e)
             try:
@@ -269,6 +275,8 @@ def main():
             return 1
 
         format.printList(output)
+
+        client.logout()
 
         return 0
 
