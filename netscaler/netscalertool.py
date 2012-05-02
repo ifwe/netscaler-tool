@@ -55,7 +55,7 @@ def fetchPasswd(passwdFile):
     return passwd
 
 
-def getListServices(client):
+def getServices(client):
     object = "service"
     listOfServices = []
 
@@ -72,9 +72,9 @@ def getListServices(client):
     return listOfServices
 
 
-def getListVservers(client):
+def getLbVservers(client):
     object = "lbvserver"
-    listOfVservers = []
+    listOfLbVservers = []
 
     try:
         output = client.getObject(object)
@@ -82,14 +82,31 @@ def getListVservers(client):
         raise RuntimeError(e)
 
     for vserver in output['lbvserver']:
-        listOfVservers.append(vserver['name'])
+        listOfLbVservers.append(vserver['name'])
 
-    listOfVservers.sort()
+    listOfLbVservers.sort()
 
-    return listOfVservers
+    return listOfLbVservers
 
 
-def getServices(client,vserver):
+def getCsVservers(client):
+    object = "csvserver"
+    listOfCsVservers = []
+
+    try:
+        output = client.getObject(object)
+    except RuntimeError, e:
+        raise RuntimeError(e)
+
+    for vserver in output['csvserver']:
+        listOfCsVservers.append(vserver['name'])
+
+    listOfCsVservers.sort()
+
+    return listOfCsVservers
+
+
+def getBoundServices(client,vserver):
     command = "getservice"
     arg = {'name':vserver}
 
@@ -189,7 +206,8 @@ def main():
     parserRmGroup.add_argument('--server', dest='rmServer', help='Server to remove.')
 
     parserShowGroup = parserShow.add_mutually_exclusive_group(required=True)
-    parserShowGroup.add_argument('--vservers', dest='showVservers', action='store_true', help='Show all vserver.', default=False)
+    parserShowGroup.add_argument('--lb-vservers', dest='showLbVservers', action='store_true', help='Show all LB vserver.', default=False)
+    parserShowGroup.add_argument('--cs-vservers', dest='showCsVservers', action='store_true', help='Show all CS vserver.', default=False)
     parserShowGroup.add_argument('--services', dest='showServices', action='store_true', help='Show all services.', default=False)
     parserShowGroup.add_argument('--vserver', dest='showVserver', metavar='VSERVER', help='Show a specific vserver.')
     parserShowGroup.add_argument('--surge-queue-size', metavar='VSERVER', dest='surgeQueueSize', help='Get current surge queue size of all servies bound to specified vserver.')
@@ -255,22 +273,31 @@ def main():
     #############
 
     # Fetching list of all vservers.
-    if args.showVservers:
+    if args.showLbVservers:
         try:
-            output = getListVservers(client)
+            output = getLbVservers(client)
             format.printList(output)
         except RuntimeError, e:
-            print >> sys.stderr, "Problem while trying to get list of vservers on %s.\n%s" % (host,e)
+            print >> sys.stderr, "Problem while trying to get list of LB vservers on %s.\n%s" % (host,e)
             status = 1
 
 
-    # Fetching list of all servies on specified NetScaler.
+    # Fetching list of all servies.
     elif args.showServices:
         try:
-            output = getListServices(client)
+            output = getServices(client)
             format.printList(output)
         except RuntimeError, e:
             print >> sys.stderr, "Problem while trying to get list of services on %s.\n%s" % (host,e)
+            status = 1
+
+    # Fetching list of all cs vservers.
+    elif args.showCsVservers:
+        try:
+            output = getCsVservers(client)
+            format.printList(output)
+        except RuntimeError, e:
+            print >> sys.stderr, "Problem while trying to get list of CS vservers on %s.\n%s" % (host,e)
             status = 1
 
 
