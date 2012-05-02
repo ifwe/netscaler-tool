@@ -8,6 +8,8 @@ import re
 import socket
 import subprocess
 
+status = 0
+
 # Used by argparse to see if the host specified is alive (pingable)
 # Maybe we can have it check the DB to see if the host is a netscaler as well.
 class isPingableAction(argparse.Action):
@@ -54,19 +56,21 @@ def fetchPasswd(passwdFile):
 
 
 def getListServices(client):
-    command = "getservice"
-    list = []
+    object = "service"
+    listOfServices = []
 
     try:
-        output = netscalerapi.runCmd(client,command)
+        output = client.getObject(object)
     except RuntimeError, e:
         raise RuntimeError(e)
 
-    for entry in output:
-        list.append(entry.name)
+    for service in output['service']:
+        listOfServices.append(service['name'])
 
-    list.sort()
-    return list
+    listOfServices.sort()
+
+    return listOfServices
+
 
 def getListVservers(client):
     object = "lbvserver"
@@ -81,6 +85,7 @@ def getListVservers(client):
         listOfVservers.append(vserver['name'])
 
     listOfVservers.sort()
+
     return listOfVservers
 
 
@@ -159,6 +164,8 @@ def getSurgeQueueSize(client,vserver):
          
 
 def main():
+
+    global status
 
     # Created parser
     parser = argparse.ArgumentParser()
@@ -243,60 +250,29 @@ def main():
     except RuntimeError, e:
         return 1
 
-    ############
-    #  Adding  #
-    ############
-
-
-    ##############
-    #  Removing  #
-    ##############
-
-
-    ###############
-    #  Comparing  #    
-    ###############
-
-
     #############
     #  Showing  #
     #############
 
-    # Fetching list of all vservers on specified NetScaler.
+    # Fetching list of all vservers.
     if args.showVservers:
         try:
             output = getListVservers(client)
+            format.printList(output)
         except RuntimeError, e:
             print >> sys.stderr, "Problem while trying to get list of vservers on %s.\n%s" % (host,e)
-            try:
-                netscalerapi.logout(client)
-            except RuntimeError, e:
-                print >> sys.stderr, "There was a problem logging out.", e
-            return 1
+            status = 1
 
-        format.printList(output)
-
-        client.logout()
-
-        return 0
 
     # Fetching list of all servies on specified NetScaler.
     elif args.showServices:
         try:
             output = getListServices(client)
+            format.printList(output)
         except RuntimeError, e:
             print >> sys.stderr, "Problem while trying to get list of services on %s.\n%s" % (host,e)
-            try:
-                netscalerapi.logout(client)
-            except RuntimeError, e:
-                print >> sys.stderr, "There was a problem logging out.", e
-            return 1
+            status = 1
 
-        format.printList(output)
-        try:
-            netscalerapi.logout(client)
-        except RuntimeError, e:
-            print >> sys.stderr, "There was a problem logging out.", e
 
     # Checking for failover status
     elif args.primaryNode:
@@ -351,12 +327,12 @@ def main():
 
     # Logging out of NetScaler.
     try:
-        netscalerapi.logout(client)
+        client.logout()
     except RuntimeError, e:
-        print >> sys.stderr, "There was a problem logging out.", e
+        print >> sys.stderr, e
 
-    # Successfully exiting
-    return 0
+    # Exiting program
+    return status
 
 
 # Run the script only if the script

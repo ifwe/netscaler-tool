@@ -39,6 +39,8 @@ class Client(object):
 
         data = json.loads(content)
         self.sessionID = data["sessionid"]
+    
+        return True
 
 
     def logout(self):
@@ -46,20 +48,19 @@ class Client(object):
         url = "http://%s/nitro/v1/config/" % (self.host)
 
         #construct the payload with URL encoding
-        payload = {"object":{}}
+        payload = {"object":""}
         payload_encoded = urllib.urlencode(payload)
 
         #create a HTTP object, and use it to submit a POST request
         http = httplib2.Http()
-        response, content = http.request(url, 'POST', headers=headers)
+        response, content = http.request(url, 'POST', body=payload_encoded, headers=headers)
 
-        print response
-        print content
+        if content != "(null)":
+            data = json.loads(content)
+            msg = "\nCouldn't logout: %s" % (data["message"])
+            raise RuntimeError(msg)
 
-        #if output.rc != 0 and output.rc != 1041:
-        #    raise RuntimeError(output.message)
-        #else:
-        #    return output.message
+        return True
 
 
     def getObject(self,object):
@@ -86,3 +87,5 @@ class Client(object):
             output = runCmd(client,command)
         except RuntimeError, e:
             raise RuntimeError(e)
+
+        return True
