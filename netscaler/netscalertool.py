@@ -2,6 +2,7 @@
 
 import sys
 import argparse
+import json
 import netscalerapi
 import format
 import re
@@ -122,17 +123,28 @@ def getBoundServices(client,vserver):
         e = "Vserver %s doesn't have any service bound to it. You can probably delete it." % (vserver)
         raise RuntimeError(e)
 
-def getNsConfig(client):
-    command = "getnsns"
+
+def getSavedNsConfig(client):
+    object = "nssavedconfig"
 
     try:
-        output = netscalerapi.runCmd(client,command)
+        output = client.getObject(object)
     except RuntimeError, e:
         raise RuntimeError(e)
 
-    output = '\n'.join(output[0].textblob.split('\\n')).strip('"') 
+    return output['nssavedconfig']['response']
 
-    return output
+
+def getRunningNsConfig(client):
+    object = "nsrunningconfig"
+
+    try:
+        output = client.getObject(object)
+    except RuntimeError, e:
+        raise RuntimeError(e)
+
+    return output['nsrunningconfig']['response']
+    
 
 def getStatServices(client,service):
     command = "statservice"
@@ -212,7 +224,8 @@ def main():
     parserShowGroup.add_argument('--vserver', dest='showVserver', metavar='VSERVER', help='Show a specific vserver.')
     parserShowGroup.add_argument('--surge-queue-size', metavar='VSERVER', dest='surgeQueueSize', help='Get current surge queue size of all servies bound to specified vserver.')
     parserShowGroup.add_argument('--primary-node', action='store_true', dest='primaryNode', help='List IP of current primary node.', default=False)
-    parserShowGroup.add_argument('--saved-config', action='store_true', dest='getNsConfig', help='Shows saved ns.conf', default=False)
+    parserShowGroup.add_argument('--saved-config', action='store_true', dest='getSavedNsConfig', help='Shows saved ns.conf', default=False)
+    parserShowGroup.add_argument('--running-config', action='store_true', dest='getRunningNsConfig', help='Shows running ns.conf', default=False)
 
     parserCmpGroup = parserCmp.add_mutually_exclusive_group(required=True)
     parserCmpGroup.add_argument('--vservers', nargs='+', dest='cmpVservers', help='Compare vserver setups.') 
@@ -343,15 +356,26 @@ def main():
         except RuntimeError, e:
             print >> sys.stderr, "There was a problem logging out.", e
 
-    elif args.getNsConfig:
+    elif args.getSavedNsConfig:
         try:
-            output = getNsConfig(client)
+            output = getSavedNsConfig(client)
+            print output
         except RuntimeError, e:
-            print >> sys.stderr, "There was a problem getting the saved ns.conf.", e
-            return 1
+            print >> sys.stderr, "There was a problem getting the saved ns.conf: ", e
 
-        print output
+            status = 1
 
+
+    elif args.getRunningNsConfig:
+        try:
+            output = getRunningNsConfig(client)
+            print output
+        except RuntimeError, e:
+            print >> sys.stderr, "There was a problem getting the running config: ", e
+
+            status = 1
+
+    
     # Logging out of NetScaler.
     try:
         client.logout()
