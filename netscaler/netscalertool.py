@@ -132,7 +132,7 @@ def getSavedNsConfig(client):
     except RuntimeError, e:
         raise RuntimeError(e)
 
-    return output['nssavedconfig']['response']
+    return output['nssavedconfig']['textblob']
 
 
 def getRunningNsConfig(client):
