@@ -362,9 +362,10 @@ def main():
             print output
         except RuntimeError, e:
             print >> sys.stderr, "There was a problem getting the saved ns.conf: ", e
+        except IOError, e:
+            pass 
 
             status = 1
-
 
     elif args.getRunningNsConfig:
         try:
@@ -372,9 +373,10 @@ def main():
             print output
         except RuntimeError, e:
             print >> sys.stderr, "There was a problem getting the running config: ", e
+        except IOError, e:
+            pass 
 
             status = 1
-
     
     # Logging out of NetScaler.
     try:
