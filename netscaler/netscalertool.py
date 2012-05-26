@@ -9,19 +9,16 @@ import re
 import socket
 import subprocess
 
-status = 0
-
 # Used by argparse to see if the host specified is alive (pingable)
 # Maybe we can have it check the DB to see if the host is a netscaler as well.
 class isPingableAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         pingCmd = ['ping','-c','1',values]
-        #process = subprocess.Popen(pingCmd,stdout=open('/dev/null'),stderr=subprocess.STDOUT)
         process = subprocess.Popen(pingCmd,stdout=open('/dev/null'),stderr=subprocess.PIPE)
         status, error = process.communicate()
 
         if error:
-            print error
+            print >> sys.stderr, error
             return sys.exit(1)
 
         setattr(namespace, self.dest, values)
@@ -194,7 +191,7 @@ def getSurgeQueueSize(client,vserver):
 
 def main():
 
-    global status
+    status = 0
 
     # Created parser
     parser = argparse.ArgumentParser()
@@ -202,20 +199,7 @@ def main():
     # Created subparser 
     subparser = parser.add_subparsers()
 
-    parserAdd = subparser.add_parser('add', help='sub-command for adding objects to the NetScaler') 
-    parserRm = subparser.add_parser('rm', help='sub-command for removing objects from the NetScaler')
     parserShow = subparser.add_parser('show', help='sub-command for showing objects on the NetScaler')
-    parserCmp = subparser.add_parser('compare', help='sub-command for comparing objects on the NetScaler')
-
-    parserAddGroup = parserAdd.add_mutually_exclusive_group(required=True)
-    parserAddGroup.add_argument('--vserver', dest='addVserver', help='Vserver to add.') 
-    parserAddGroup.add_argument('--service', dest='addService', help='Service to add.')
-    parserAddGroup.add_argument('--server', dest='addServer', help='Server to add.')
-
-    parserRmGroup = parserRm.add_mutually_exclusive_group(required=True)
-    parserRmGroup.add_argument('--vserver', dest='rmVserver', help='Vserver to remove.') 
-    parserRmGroup.add_argument('--service', dest='rmService', help='Service to remove.')
-    parserRmGroup.add_argument('--server', dest='rmServer', help='Server to remove.')
 
     parserShowGroup = parserShow.add_mutually_exclusive_group(required=True)
     parserShowGroup.add_argument('--lb-vservers', dest='showLbVservers', action='store_true', help='Show all LB vserver.', default=False)
@@ -227,10 +211,6 @@ def main():
     parserShowGroup.add_argument('--saved-config', action='store_true', dest='getSavedNsConfig', help='Shows saved ns.conf', default=False)
     parserShowGroup.add_argument('--running-config', action='store_true', dest='getRunningNsConfig', help='Shows running ns.conf', default=False)
 
-    parserCmpGroup = parserCmp.add_mutually_exclusive_group(required=True)
-    parserCmpGroup.add_argument('--vservers', nargs='+', dest='cmpVservers', help='Compare vserver setups.') 
-    parserCmpGroup.add_argument('--services', nargs='+', dest='cmpServices', help='Compare service setups.')
-    
     parser.add_argument("--host", dest='host', metavar='NETSCALER', action=isPingableAction, required=True, help="IP or name of NetScaler.")
     parser.add_argument("--user", dest="user", help="NetScaler user account.", default="***REMOVED***")
     parser.add_argument("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
@@ -294,7 +274,6 @@ def main():
             print >> sys.stderr, "Problem while trying to get list of LB vservers on %s.\n%s" % (host,e)
             status = 1
 
-
     # Fetching list of all servies.
     elif args.showServices:
         try:
@@ -312,7 +291,6 @@ def main():
         except RuntimeError, e:
             print >> sys.stderr, "Problem while trying to get list of CS vservers on %s.\n%s" % (host,e)
             status = 1
-
 
     # Checking for failover status
     elif args.primaryNode:
@@ -362,10 +340,9 @@ def main():
             print output
         except RuntimeError, e:
             print >> sys.stderr, "There was a problem getting the saved ns.conf: ", e
+            status = 1
         except IOError, e:
             pass 
-
-            status = 1
 
     elif args.getRunningNsConfig:
         try:
@@ -373,11 +350,10 @@ def main():
             print output
         except RuntimeError, e:
             print >> sys.stderr, "There was a problem getting the running config: ", e
+            status = 1
         except IOError, e:
             pass 
 
-            status = 1
-    
     # Logging out of NetScaler.
     try:
         client.logout()
@@ -386,7 +362,6 @@ def main():
 
     # Exiting program
     return status
-
 
 # Run the script only if the script
 # itself is called directly.
