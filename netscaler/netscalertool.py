@@ -54,7 +54,7 @@ def fetchPasswd(passwdFile):
 
 
 def getServices(client):
-    object = "service"
+    object = ['service']
     listOfServices = []
 
     try:
@@ -66,12 +66,11 @@ def getServices(client):
         listOfServices.append(service['name'])
 
     listOfServices.sort()
-
     return listOfServices
 
 
 def getLbVservers(client):
-    object = "lbvserver"
+    object = ['lbvserver']
     listOfLbVservers = []
 
     try:
@@ -83,12 +82,22 @@ def getLbVservers(client):
         listOfLbVservers.append(vserver['name'])
 
     listOfLbVservers.sort()
-
     return listOfLbVservers
 
 
+def getLbVserver(client,vserver):
+    object = ['lbvserver',vserver]
+
+    try:
+        output = client.getObject(object)
+    except RuntimeError, e:
+        raise RuntimeError(e)
+
+    return output['lbvserver'][0]
+
+
 def getCsVservers(client):
-    object = "csvserver"
+    object = ['csvserver']
     listOfCsVservers = []
 
     try:
@@ -100,7 +109,6 @@ def getCsVservers(client):
         listOfCsVservers.append(vserver['name'])
 
     listOfCsVservers.sort()
-
     return listOfCsVservers
 
 
@@ -122,7 +130,7 @@ def getBoundServices(client,vserver):
 
 
 def getSavedNsConfig(client):
-    object = "nssavedconfig"
+    object = ['nssavedconfig']
 
     try:
         output = client.getObject(object)
@@ -133,7 +141,7 @@ def getSavedNsConfig(client):
 
 
 def getRunningNsConfig(client):
-    object = "nsrunningconfig"
+    object = ['nsrunningconfig']
 
     try:
         output = client.getObject(object)
@@ -203,6 +211,7 @@ def main():
 
     parserShowGroup = parserShow.add_mutually_exclusive_group(required=True)
     parserShowGroup.add_argument('--lb-vservers', dest='showLbVservers', action='store_true', help='Show all LB vserver.', default=False)
+    parserShowGroup.add_argument('--lb-vserver', dest='showLbVserver', metavar='LBVSERVER', help='Show info about a LB vserver.')
     parserShowGroup.add_argument('--cs-vservers', dest='showCsVservers', action='store_true', help='Show all CS vserver.', default=False)
     parserShowGroup.add_argument('--services', dest='showServices', action='store_true', help='Show all services.', default=False)
     parserShowGroup.add_argument('--vserver', dest='showVserver', metavar='VSERVER', help='Show a specific vserver.')
@@ -272,6 +281,14 @@ def main():
             format.printList(output)
         except RuntimeError, e:
             print >> sys.stderr, "Problem while trying to get list of LB vservers on %s.\n%s" % (host,e)
+            status = 1
+
+    if args.showLbVserver:
+        try:
+            output = getLbVserver(client,args.showLbVserver)
+            format.printDict(output)
+        except RuntimeError, e:
+            print >> sys.stderr, "Problem while trying to get info about LB vserver %s on %s.\n%s" % (args.showLbVserver,host,e)
             status = 1
 
     # Fetching list of all servies.

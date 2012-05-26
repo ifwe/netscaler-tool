@@ -65,7 +65,7 @@ class Client(object):
 
     def getObject(self,object):
         headers = {'Content-type': 'application/x-www-form-urlencoded', 'Cookie': 'sessionid='+self.sessionID}
-        url = "http://%s/nitro/v1/config/%s" % (self.host, object)
+        url = "http://%s/nitro/v1/config/%s" % (self.host,'/'.join(object))
 
         #create a HTTP object, and use it to submit a GET request
         http = httplib2.Http()
