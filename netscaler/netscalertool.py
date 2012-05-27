@@ -13,12 +13,12 @@ import subprocess
 # Maybe we can have it check the DB to see if the host is a netscaler as well.
 class isPingableAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        pingCmd = ['ping','-c','1',values]
-        process = subprocess.Popen(pingCmd,stdout=open('/dev/null'),stderr=subprocess.PIPE)
-        status, error = process.communicate()
+        pingCmd = ['ping','-c','1','-W','2',values]
+        process = subprocess.call(pingCmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 
-        if error:
-            print >> sys.stderr, error
+        if process != 0:
+            msg = "%s is not alive." % (values)
+            print >> sys.stderr, msg
             return sys.exit(1)
 
         setattr(namespace, self.dest, values)
