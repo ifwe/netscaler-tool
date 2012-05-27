@@ -4,11 +4,12 @@ def printList(list):
 
     return 0
 
-def printDict(dict):
-    for key in sorted(dict.keys()):
-        print "%s: %s" % (key,dict[key])
-    
-    #for entry in dict.sort():
-    #    print "%s: %s" % (entry,dict[entry])
-
+def printDict(dict,*args):
+    if args:
+        for key in sorted(args[0]):
+            print "%s: %s" % (key,dict[key])
+    else:
+        for key in sorted(dict.keys()):
+            print "%s: %s" % (key,dict[key])
+        
     return 0

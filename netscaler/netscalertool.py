@@ -200,6 +200,7 @@ def getSurgeQueueSize(client,vserver):
 def main():
 
     status = 0
+    attributes = None
 
     # Created parser
     parser = argparse.ArgumentParser()
@@ -211,7 +212,7 @@ def main():
 
     parserShowGroup = parserShow.add_mutually_exclusive_group(required=True)
     parserShowGroup.add_argument('--lb-vservers', dest='showLbVservers', action='store_true', help='Show all LB vserver.', default=False)
-    parserShowGroup.add_argument('--lb-vserver', dest='showLbVserver', metavar='LBVSERVER', help='Show info about a LB vserver.')
+    parserShowGroup.add_argument('--lb-vserver', dest='showLbVserver', metavar='LBVSERVER', nargs='+', help='Show info about a LB vserver.')
     parserShowGroup.add_argument('--cs-vservers', dest='showCsVservers', action='store_true', help='Show all CS vserver.', default=False)
     parserShowGroup.add_argument('--services', dest='showServices', action='store_true', help='Show all services.', default=False)
     parserShowGroup.add_argument('--vserver', dest='showVserver', metavar='VSERVER', help='Show a specific vserver.')
@@ -283,13 +284,25 @@ def main():
             print >> sys.stderr, "Problem while trying to get list of LB vservers on %s.\n%s" % (host,e)
             status = 1
 
+
     if args.showLbVserver:
+        vserver = args.showLbVserver[0]
+
+        # If we get a list greater than 1, we know the user
+        # is asking for a attribute of the vserver.
+        if len(args.showLbVserver) > 1:
+            attributes = args.showLbVserver[1:]
+
         try:
-            output = getLbVserver(client,args.showLbVserver)
-            format.printDict(output)
+            output = getLbVserver(client,vserver)
+            if attributes:
+                format.printDict(output,attributes)
+            else:
+                format.printDict(output)
         except RuntimeError, e:
-            print >> sys.stderr, "Problem while trying to get info about LB vserver %s on %s.\n%s" % (args.showLbVserver,host,e)
+            print >> sys.stderr, "Problem while trying to get info about LB vserver %s on %s.\n%s" % (vserver,host,e)
             status = 1
+
 
     # Fetching list of all servies.
     elif args.showServices:
