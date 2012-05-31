@@ -125,20 +125,19 @@ def getPrimaryNode(client):
 
 
 def getBoundServices(client,vserver):
-    command = "getservice"
-    arg = {'name':vserver}
+    object = ['lbvserver_binding',vserver]
+    listOfBoundServices = []
 
     try:
-        output = netscalerapi.runCmd(client,command,**arg)
+        output = client.getObject(object)
     except RuntimeError, e:
         raise RuntimeError(e)
 
-    print output[0]
-    try:
-        return output[0].servicename
-    except AttributeError:
-        e = "Vserver %s doesn't have any service bound to it. You can probably delete it." % (vserver)
-        raise RuntimeError(e)
+    for service in output['lbvserver_binding'][0]['lbvserver_service_binding']:
+        listOfBoundServices.append(service['servicename'])
+
+    listOfBoundServices.sort()
+    return listOfBoundServices
 
 
 def getSavedNsConfig(client):
@@ -163,48 +162,44 @@ def getRunningNsConfig(client):
     return output['nsrunningconfig']['response']
     
 
-def getStatServices(client,service):
-    command = "statservice"
-    arg = {'name':service}
+def getServiceStats(client,service,*args):
+    mode = 'stats'
+    object = ['service',service]
+    DictOfServiceStats = {}
+
+    if args:
+        object.extend(args)
 
     try:
-        output = netscalerapi.runCmd(client,command,**arg)
+        output = client.getObject(object,mode)
     except RuntimeError, e:
         raise RuntimeError(e)
 
-    return output[0].surgecount
+    for stat in args:
+        try:
+            DictOfServiceStats[stat] = output['service'][0][stat]
+        except KeyError, e:
+            print >> sys.stderr, "%s is not a valid stat." % (stat)
+
+    return DictOfServiceStats
+
 
 def getSurgeQueueSize(client,vserver):
-    msg = ""
     surgeCountTotal = 0
 
     try:
-        output = getServices(client,vserver)
-    except RuntimeError, e:
-        raise RuntimeError(e)
-
-    # Since we got the services bound to the vserver in question, we now
-    # need to get surge queue count for each service, but that requires we
-    # change wsdl files.
-    try:
-        client = login(host,user,passwd,debug)
+        output = getBoundServices(client,vserver)
     except RuntimeError, e:
         raise RuntimeError(e)
 
     # Going through the list of services to get surge count.
     for service in output:
-        if debug:
-            print "Fetching surge queue count for %s" % (service)
-
         try:
-            output = getStatServices(client,service)
+            output = getServiceStats(client,service,'surgecount')
         except RuntimeError, e:
             raise RuntimeError(e)
-        
-        if debug:
-            print "Surge count for %s: %s\n" % (service,output)
 
-        surgeCountTotal =+ int(output)
+        surgeCountTotal += int(output['surgecount'])
 
     return surgeCountTotal
          
@@ -345,24 +340,15 @@ def main():
 
     # Fetching surge queue size for specified vserver
     elif args.surgeQueueSize:
+        vserver = args.surgeQueueSize
         try:
             output = getSurgeQueueSize(client,vserver)
+            if debug:
+                print "Total Surge Queue Size is:"
+            print output
         except RuntimeError, e:
             print >> sys.stderr, "Problem getting surge queue size of all services bound to vserver %s.\n%s" % (vserver,e)
-            try:
-                netscalerapi.logout(client)
-            except RuntimeError, e:
-                print >> sys.stderr, "There was a problem logging out.", e
-            return 1
-
-        if debug:
-            print "Total Surge Queue Size is:"
-        print output
-
-        try:
-            netscalerapi.logout(client)
-        except RuntimeError, e:
-            print >> sys.stderr, "There was a problem logging out.", e
+            status = 1
 
     elif args.getSavedNsConfig:
         try:

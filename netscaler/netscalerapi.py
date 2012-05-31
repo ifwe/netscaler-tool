@@ -64,9 +64,15 @@ class Client(object):
         return True
 
 
-    def getObject(self,object):
+    def getObject(self,object,*args):
         headers = {'Content-type': 'application/x-www-form-urlencoded', 'Cookie': 'sessionid='+self.sessionID}
-        url = "http://%s/nitro/v1/config/%s" % (self.host,'/'.join(object))
+
+        # if we get stat in our optional args list, that means we need to change
+        # the url to handle fetching stat objects
+        if 'stats' in args:
+            url = "http://%s/nitro/v1/stat/%s" % (self.host,'/'.join(object))
+        else:
+            url = "http://%s/nitro/v1/config/%s" % (self.host,'/'.join(object))
 
         #create a HTTP object, and use it to submit a GET request
         http = httplib2.Http()
