@@ -112,6 +112,18 @@ def getCsVservers(client):
     return listOfCsVservers
 
 
+def getPrimaryNode(client):
+    object = ['hanode']
+
+    try:
+        output = client.getObject(object)
+    except RuntimeError, e:
+        raise RuntimeError(e)
+
+    # Grabbing the IP of the current primary
+    return output['hanode'][0]['routemonitor']
+
+
 def getBoundServices(client,vserver):
     command = "getservice"
     arg = {'name':vserver}
@@ -324,24 +336,12 @@ def main():
 
     # Checking for failover status
     elif args.primaryNode:
-        command = "gethanode"
         try:
-            output = netscalerapi.runCmd(client,command)
+            output = getPrimaryNode(client)
+            print output
         except RuntimeError, e:
-            print >> sys.stderr, e
-            try:
-                netscalerapi.logout(client)
-            except RuntimeError, e:
-                print >> sys.stderr, "There was a problem logging out.", e
-            return 1
-
-        print "Primary node is:"
-        print output[0].name, output[0].ipaddress, "\n"
-
-        try:
-            netscalerapi.logout(client)
-        except RuntimeError, e:
-            print >> sys.stderr, "There was a problem logging out.", e
+            print >> sys.stderr, "Problem while trying to get IP of primary node of %s.\n%s" % (host,e)
+            status = 1
 
     # Fetching surge queue size for specified vserver
     elif args.surgeQueueSize:
