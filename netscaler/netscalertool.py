@@ -184,7 +184,7 @@ def getServiceStats(client,service,*args):
     return DictOfServiceStats
 
 
-def getSurgeQueueSize(client,vserver):
+def getSurgeCount(client,vserver):
     surgeCountTotal = 0
 
     try:
@@ -223,7 +223,7 @@ def main():
     parserShowGroup.add_argument('--cs-vservers', dest='showCsVservers', action='store_true', help='Show all CS vserver.', default=False)
     parserShowGroup.add_argument('--services', dest='showServices', action='store_true', help='Show all services.', default=False)
     parserShowGroup.add_argument('--vserver', dest='showVserver', metavar='VSERVER', help='Show a specific vserver.')
-    parserShowGroup.add_argument('--surge-queue-size', metavar='VSERVER', dest='surgeQueueSize', help='Get current surge queue size of all servies bound to specified vserver.')
+    parserShowGroup.add_argument('--surge-count', metavar='VSERVER', dest='surgeCount', help='Get current surge queue size of all servies bound to specified vserver.')
     parserShowGroup.add_argument('--primary-node', action='store_true', dest='primaryNode', help='List IP of current primary node.', default=False)
     parserShowGroup.add_argument('--saved-config', action='store_true', dest='getSavedNsConfig', help='Shows saved ns.conf', default=False)
     parserShowGroup.add_argument('--running-config', action='store_true', dest='getRunningNsConfig', help='Shows running ns.conf', default=False)
@@ -339,10 +339,10 @@ def main():
             status = 1
 
     # Fetching surge queue size for specified vserver
-    elif args.surgeQueueSize:
-        vserver = args.surgeQueueSize
+    elif args.surgeCount:
+        vserver = args.surgeCount
         try:
-            output = getSurgeQueueSize(client,vserver)
+            output = getSurgeCount(client,vserver)
             if debug:
                 print "Total Surge Queue Size is:"
             print output
