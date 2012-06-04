@@ -37,172 +37,178 @@ class resolvesAction(argparse.Action):
             setattr(namespace, self.dest, values)
 
 
-def fetchPasswd(passwdFile):
-    try:
-        f = open(passwdFile,'r')
-    except IOError, e:
-        raise IOError(e)
-
-    # Reading contents of passwd file.
-    passwd = f.readline().strip('\n')
-
-    # Closing file handle
-    f.close()
-
-    # Returning passwd
-    return passwd
+class NetscalerTool():
+    def __init__(self,client,debug):
+        self.client = client
+        self.debug = debug    
 
 
-def getServices(client):
-    object = ['service']
-    listOfServices = []
-
-    try:
-        output = client.getObject(object)
-    except RuntimeError, e:
-        raise RuntimeError(e)
-
-    for service in output['service']:
-        listOfServices.append(service['name'])
-
-    listOfServices.sort()
-    return listOfServices
-
-
-def getLbVservers(client):
-    object = ['lbvserver']
-    listOfLbVservers = []
-
-    try:
-        output = client.getObject(object)
-    except RuntimeError, e:
-        raise RuntimeError(e)
-
-    for vserver in output['lbvserver']:
-        listOfLbVservers.append(vserver['name'])
-
-    listOfLbVservers.sort()
-    return listOfLbVservers
-
-
-def getLbVserver(client,vserver):
-    object = ['lbvserver',vserver]
-
-    try:
-        output = client.getObject(object)
-    except RuntimeError, e:
-        raise RuntimeError(e)
-
-    return output['lbvserver'][0]
-
-
-def getCsVservers(client):
-    object = ['csvserver']
-    listOfCsVservers = []
-
-    try:
-        output = client.getObject(object)
-    except RuntimeError, e:
-        raise RuntimeError(e)
-
-    for vserver in output['csvserver']:
-        listOfCsVservers.append(vserver['name'])
-
-    listOfCsVservers.sort()
-    return listOfCsVservers
-
-
-def getPrimaryNode(client):
-    object = ['hanode']
-
-    try:
-        output = client.getObject(object)
-    except RuntimeError, e:
-        raise RuntimeError(e)
-
-    # Grabbing the IP of the current primary
-    return output['hanode'][0]['routemonitor']
-
-
-def getBoundServices(client,vserver):
-    object = ['lbvserver_binding',vserver]
-    listOfBoundServices = []
-
-    try:
-        output = client.getObject(object)
-    except RuntimeError, e:
-        raise RuntimeError(e)
-
-    for service in output['lbvserver_binding'][0]['lbvserver_service_binding']:
-        listOfBoundServices.append(service['servicename'])
-
-    listOfBoundServices.sort()
-    return listOfBoundServices
-
-
-def getSavedNsConfig(client):
-    object = ['nssavedconfig']
-
-    try:
-        output = client.getObject(object)
-    except RuntimeError, e:
-        raise RuntimeError(e)
-
-    return output['nssavedconfig']['textblob']
-
-
-def getRunningNsConfig(client):
-    object = ['nsrunningconfig']
-
-    try:
-        output = client.getObject(object)
-    except RuntimeError, e:
-        raise RuntimeError(e)
-
-    return output['nsrunningconfig']['response']
-    
-
-def getServiceStats(client,service,*args):
-    mode = 'stats'
-    object = ['service',service]
-    DictOfServiceStats = {}
-
-    if args:
-        object.extend(args)
-
-    try:
-        output = client.getObject(object,mode)
-    except RuntimeError, e:
-        raise RuntimeError(e)
-
-    for stat in args:
+    def fetchPasswd(self,passwdFile):
         try:
-            DictOfServiceStats[stat] = output['service'][0][stat]
-        except KeyError, e:
-            print >> sys.stderr, "%s is not a valid stat." % (stat)
+            f = open(passwdFile,'r')
+        except IOError, e:
+            raise IOError(e)
 
-    return DictOfServiceStats
+        # Reading contents of passwd file.
+        passwd = f.readline().strip('\n')
+
+        # Closing file handle
+        f.close()
+
+        # Returning passwd
+        return passwd
 
 
-def getSurgeCount(client,vserver):
-    surgeCountTotal = 0
+    def getServices(self):
+        object = ['service']
+        listOfServices = []
 
-    try:
-        output = getBoundServices(client,vserver)
-    except RuntimeError, e:
-        raise RuntimeError(e)
-
-    # Going through the list of services to get surge count.
-    for service in output:
         try:
-            output = getServiceStats(client,service,'surgecount')
+            output = self.client.getObject(object)
         except RuntimeError, e:
             raise RuntimeError(e)
 
-        surgeCountTotal += int(output['surgecount'])
+        for service in output['service']:
+            listOfServices.append(service['name'])
 
-    return surgeCountTotal
-         
+        listOfServices.sort()
+        return listOfServices
+
+
+    def getLbVservers(self):
+        object = ['lbvserver']
+        listOfLbVservers = []
+
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            raise RuntimeError(e)
+
+        for vserver in output['lbvserver']:
+            listOfLbVservers.append(vserver['name'])
+
+        listOfLbVservers.sort()
+        return listOfLbVservers
+
+
+    def getLbVserver(self,vserver):
+        object = ['lbvserver',vserver]
+
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            raise RuntimeError(e)
+
+        return output['lbvserver'][0]
+
+
+    def getCsVservers(self):
+        object = ['csvserver']
+        listOfCsVservers = []
+
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            raise RuntimeError(e)
+
+        for vserver in output['csvserver']:
+            listOfCsVservers.append(vserver['name'])
+
+        listOfCsVservers.sort()
+        return listOfCsVservers
+
+
+    def getPrimaryNode(self):
+        object = ['hanode']
+
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            raise RuntimeError(e)
+
+        # Grabbing the IP of the current primary
+        return output['hanode'][0]['routemonitor']
+
+
+    def getBoundServices(self,vserver):
+        object = ['lbvserver_binding',vserver]
+        listOfBoundServices = []
+
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            raise RuntimeError(e)
+
+        for service in output['lbvserver_binding'][0]['lbvserver_service_binding']:
+            listOfBoundServices.append(service['servicename'])
+
+        listOfBoundServices.sort()
+        return listOfBoundServices
+
+
+    def getSavedNsConfig(self):
+        object = ['nssavedconfig']
+
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            raise RuntimeError(e)
+
+        return output['nssavedconfig']['textblob']
+
+
+    def getRunningNsConfig(self):
+        object = ['nsrunningconfig']
+
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            raise RuntimeError(e)
+
+        return output['nsrunningconfig']['response']
+        
+
+    def getServiceStats(self,service,*args):
+        mode = 'stats'
+        object = ['service',service]
+        DictOfServiceStats = {}
+
+        if args:
+            object.extend(args)
+
+        try:
+            output = self.client.getObject(object,mode)
+        except RuntimeError, e:
+            raise RuntimeError(e)
+
+        for stat in args:
+            try:
+                DictOfServiceStats[stat] = output['service'][0][stat]
+            except KeyError, e:
+                print >> sys.stderr, "%s is not a valid stat." % (stat)
+
+        return DictOfServiceStats
+
+
+    def getSurgeCount(self,vserver):
+        surgeCountTotal = 0
+
+        try:
+            output = getBoundServices(vserver)
+        except RuntimeError, e:
+            raise RuntimeError(e)
+
+        # Going through the list of services to get surge count.
+        for service in output:
+            try:
+                output = getServiceStats(service,'surgecount')
+            except RuntimeError, e:
+                raise RuntimeError(e)
+
+            surgeCountTotal += int(output['surgecount'])
+
+        return surgeCountTotal
+             
 
 def main():
 
@@ -245,6 +251,8 @@ def main():
     debug = args.debug
     dryrun = args.dryrun
     ignoreDns = args.ignoreDns
+
+    netscalertool = NetscalerTool(debug)
 
     # fetching password from file
     try:

@@ -4,8 +4,7 @@ import httplib2
 import urllib
 import sys
 
-class Client(object):
-    
+class Client():
     def __init__(self,host,user,passwd,debug):
         self.host = host
         self.user = user
