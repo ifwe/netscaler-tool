@@ -212,14 +212,14 @@ class NetscalerTool():
         surgeCountTotal = 0
 
         try:
-            output = getBoundServices(vserver)
+            output = self.getBoundServices(vserver)
         except RuntimeError, e:
             raise RuntimeError(e)
 
         # Going through the list of services to get surge count.
         for service in output:
             try:
-                output = getServiceStats(service,'surgecount')
+                output = self.getServiceStats(service,'surgecount')
             except RuntimeError, e:
                 raise RuntimeError(e)
 
