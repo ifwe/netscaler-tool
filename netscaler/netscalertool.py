@@ -239,10 +239,11 @@ def main():
     # Created subparser. 
     subparser = parser.add_subparsers()
 
-    # Added show parser to subparser.
+    # Created show parser to subparser.
     parserShow = subparser.add_parser('show', help='sub-command for showing objects on the NetScaler')
-    parserShowGroup = parserShow.add_mutually_exclusive_group()
+    parserShowGroup = parserShow.add_mutually_exclusive_group(required=True)
     parserShowGroup.add_argument('--lb-vservers', dest='getLbVservers', action='store_true', help='Show all LB vservers.', default=False)
+    parserShowGroup.add_argument('--lb-vserver', dest='getLbVserver', metavar='LBVSERVER', help='Show info about a LB vserver.')
     parserShowGroup.add_argument('--cs-vservers', dest='getCsVservers', action='store_true', help='Show all CS vservers.', default=False)
     parserShowGroup.add_argument('--services', dest='showServices', action='store_true', help='Show all services.', default=False)
     parserShowGroup.add_argument('--surge-count', metavar='VSERVER', dest='surgeCount', help='Get current surge queue size of all servies bound to specified vserver.')
@@ -250,10 +251,9 @@ def main():
     parserShowGroup.add_argument('--saved-config', action='store_true', dest='getSavedNsConfig', help='Shows saved ns.conf', default=False)
     parserShowGroup.add_argument('--running-config', action='store_true', dest='getRunningNsConfig', help='Shows running ns.conf', default=False)
 
-    # Stats group args
-    parserStatsGroup = parserShow.add_argument_group('showVservers', 'Show stats of vservers.')
-    parserStatsGroup.add_argument('--lb-vserver', dest='getLbVserver', metavar='LBVSERVER', help='Show info about a LB vserver.')
-    parserStatsGroup.add_argument('--attr', dest='attribute', nargs='+', metavar='ATTRIBUTE', help='Show only specific attribute(s) when using --lb-vserver')
+    # Separate arg group for use with --lb-vserver
+    parserShowGroup = parserShow.add_argument_group('--lb-vserver', 'Show stat(s) of a vserver')
+    parserShowGroup.add_argument('--attr', dest='attribute', nargs='+', metavar='ATTRIBUTE', help='Show only specific attribute(s) when using --lb-vserver')
 
     # Global args
     parser.add_argument("--host", dest='host', metavar='NETSCALER', action=isPingableAction, required=True, help="IP or name of NetScaler.")
