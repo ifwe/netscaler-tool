@@ -241,16 +241,21 @@ def main():
 
     # Added show parser to subparser.
     parserShow = subparser.add_parser('show', help='sub-command for showing objects on the NetScaler')
-
-    parserShowGroup = parserShow.add_mutually_exclusive_group(required=True)
+    parserShowGroup = parserShow.add_mutually_exclusive_group()
     parserShowGroup.add_argument('--lb-vservers', dest='getLbVservers', action='store_true', help='Show all LB vservers.', default=False)
-    parserShowGroup.add_argument('--lb-vserver', dest='getLbVserver', metavar='LBVSERVER', nargs='+', help='Show info about a LB vserver.')
     parserShowGroup.add_argument('--cs-vservers', dest='getCsVservers', action='store_true', help='Show all CS vservers.', default=False)
     parserShowGroup.add_argument('--services', dest='showServices', action='store_true', help='Show all services.', default=False)
     parserShowGroup.add_argument('--surge-count', metavar='VSERVER', dest='surgeCount', help='Get current surge queue size of all servies bound to specified vserver.')
     parserShowGroup.add_argument('--primary-node', action='store_true', dest='primaryNode', help='List IP of current primary node.', default=False)
     parserShowGroup.add_argument('--saved-config', action='store_true', dest='getSavedNsConfig', help='Shows saved ns.conf', default=False)
     parserShowGroup.add_argument('--running-config', action='store_true', dest='getRunningNsConfig', help='Shows running ns.conf', default=False)
+
+    # Stats group args
+    parserStatsGroup = parserShow.add_argument_group('showVservers', 'Show stats of vservers.')
+    parserStatsGroup.add_argument('--lb-vserver', dest='getLbVserver', metavar='LBVSERVER', help='Show info about a LB vserver.')
+    parserStatsGroup.add_argument('--attr', dest='attribute', nargs='+', metavar='ATTRIBUTE', help='Show only specific attribute(s) when using --lb-vserver')
+
+    # Global args
     parser.add_argument("--host", dest='host', metavar='NETSCALER', action=isPingableAction, required=True, help="IP or name of NetScaler.")
     parser.add_argument("--user", dest="user", help="NetScaler user account.", default="***REMOVED***")
     parser.add_argument("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
@@ -295,12 +300,10 @@ def main():
 
     # Fetching stats on a specific lb vserver.
     if args.getLbVserver:
-        vserver = args.getLbVserver[0]
+        vserver = args.getLbVserver
 
-        # If we get a list greater than 1, we know the user
-        # is asking for a attribute of the vserver.
-        if len(args.getLbVserver) > 1:
-            attributes = args.getLbVserver[1:]
+        if args.attribute:
+            attributes = args.attribute
 
         try:
             output = netscalertool.getLbVserver(vserver)
