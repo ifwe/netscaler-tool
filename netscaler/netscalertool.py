@@ -37,7 +37,7 @@ class resolvesAction(argparse.Action):
             setattr(namespace, self.dest, values)
 
 
-class NetscalerTool():
+class Netscalertool():
     def __init__(self,host,user,passwdFile,debug,dryrun):
         self.host = host
         self.user = user
@@ -77,75 +77,85 @@ class NetscalerTool():
         return passwd
 
 
-    def getServices(self):
+    def services(self):
         object = ['service']
         listOfServices = []
 
         try:
             output = self.client.getObject(object)
         except RuntimeError, e:
-            raise RuntimeError(e)
+            print >> sys.stderr, "Problem while trying to get list of services on %s.\n%s" % (self.host,e)
+            return 1
 
         for service in output['service']:
             listOfServices.append(service['name'])
 
-        listOfServices.sort()
-        return listOfServices
+        format.printList(sorted(listOfServices))
 
 
-    def getLbVservers(self):
+    def lbvservers(self):
         object = ['lbvserver']
         listOfLbVservers = []
 
         try:
             output = self.client.getObject(object)
         except RuntimeError, e:
-            raise RuntimeError(e)
+            print >> sys.stderr, "Problem while trying to get list of LB vservers on %s.\n%s" % (self.host,e)
+            return 1
 
         for vserver in output['lbvserver']:
             listOfLbVservers.append(vserver['name'])
 
-        listOfLbVservers.sort()
-        return listOfLbVservers
+        format.printList(sorted(listOfLbVservers))
 
 
-    def getLbVserver(self,vserver):
-        object = ['lbvserver',vserver]
+    def lbvserver(self,vserver,**kwargs):
+        if kwargs['attr']:
+            object = ['lbvserver',vserver]
+            try:
+                output = self.client.getObject(object)
+            except RuntimeError, e:
+                print >> sys.stderr, "Problem while trying to get info about LB vserver %s on %s.\n%s" % (vserver,self.host,e)
+                return 1
 
-        try:
-            output = self.client.getObject(object)
-        except RuntimeError, e:
-            raise RuntimeError(e)
+        else:
+            object = ['lbvserver',vserver]
+            try:
+                output = self.client.getObject(object)
+            except RuntimeError, e:
+                print >> sys.stderr, "Problem while trying to get info about LB vserver %s on %s.\n%s" % (vserver,self.host,e)
+                return 1
 
-        return output['lbvserver'][0]
+            format.printDict(output[object[0]][0])
 
 
-    def getCsVservers(self):
+    def csvservers(self):
         object = ['csvserver']
         listOfCsVservers = []
 
         try:
             output = self.client.getObject(object)
         except RuntimeError, e:
-            raise RuntimeError(e)
+            print >> sys.stderr, "Problem while trying to get list of CS vservers on %s.\n%s" % (host,e)
+            return 1
 
         for vserver in output['csvserver']:
             listOfCsVservers.append(vserver['name'])
 
-        listOfCsVservers.sort()
-        return listOfCsVservers
+        format.printList(sorted(listOfCsVservers))
 
 
-    def getPrimaryNode(self):
+    def primarynode(self):
         object = ['hanode']
 
         try:
             output = self.client.getObject(object)
         except RuntimeError, e:
-            raise RuntimeError(e)
+            print >> sys.stderr, "Problem while trying to get IP of primary node of %s.\n%s" % (host,e)
+            return 1
 
         # Grabbing the IP of the current primary
-        return output['hanode'][0]['routemonitor']
+        print output['hanode'][0]['routemonitor']
 
 
     def getBoundServices(self,vserver):
@@ -208,46 +218,49 @@ class NetscalerTool():
         return DictOfServiceStats
 
 
-    def getSurgeCount(self,vserver):
+    def surgetotal(self,vserver):
         surgeCountTotal = 0
 
         try:
             output = self.getBoundServices(vserver)
         except RuntimeError, e:
-            raise RuntimeError(e)
+            print >> sys.stderr, "Problem getting bound services to %s.\n%s" % (vserver,e)
+            return 1
 
         # Going through the list of services to get surge count.
         for service in output:
             try:
                 output = self.getServiceStats(service,'surgecount')
             except RuntimeError, e:
-                raise RuntimeError(e)
+                print >> sys.stderr, "Problem getting surgecount of service %s.\n%s" % (service,e)
+                return 1
 
-            surgeCountTotal += int(output['surgecount'])
+            surge = int(output['surgecount'])
+            if self.debug:
+                print "%s: %d" % (service,surge)
+            surgeCountTotal += surge
 
-        return surgeCountTotal
+        if self.debug:
+            print "Total Surge Queue Size is:"
+        print surgeCountTotal
+
+def mapArgToMethod(object,arg):
+    try:
+        # Checking to see if method actually exists
+        object = globals()[object]
+
+        return method
+    except KeyError:
+        raise argparse.ArgumentTypeError("%s is not a valid option." % arg)
              
 
 def main():
 
+    # Exit status
     status = 0
-    attributes = None
 
     # Created parser.
     parser = argparse.ArgumentParser()
-
-    # Created subparser. 
-    subparser = parser.add_subparsers()
-
-    # Created show parser to subparser.
-    parserShow = subparser.add_parser('show', help='sub-command for showing objects on the NetScaler')
-    showSubparser = parserShow.add_subparsers()
-
-    # Adding parsers to showSubparser
-    parserShowLbVservers = showSubparser.add_parser('lb-vservers', help='Show all lb vservers')
-    parserShowLbVserver = showSubparser.add_parser('lb-vserver', help='Show stat(s) on specific lb vservers')
-    parserShowCsVservers = showSubparser.add_parser('cs-vservers', help='Show all cs vservers')
-    parserShowServices = showSubparser.add_parser('services', help='Show all services')
 
     # Global args
     parser.add_argument("--host", dest='host', metavar='NETSCALER', action=isPingableAction, required=True, help="IP or name of NetScaler.")
@@ -258,9 +271,28 @@ def main():
     parser.add_argument("--debug", action="store_true", dest="debug", help="Shows what's going on.", default=False)
     parser.add_argument("--dryrun", action="store_true", dest="dryrun", help="Dryrun.", default=False)
 
+    # Created subparser. 
+    subparser = parser.add_subparsers()
+
+    # Created show parser to subparser.
+    parserShow = subparser.add_parser('show', help='sub-command for showing objects on the NetScaler')
+    subparserShow = parserShow.add_subparsers(dest='subparserName')
+    parserShowLbVservers = subparserShow.add_parser('lb-vservers', help='Show all lb vservers')
+    parserShowLbVserver = subparserShow.add_parser('lb-vserver', help='Show stat(s) of a specific lb vserver')
+    parserShowLbVserver.add_argument('vserver', help='Show stats for which vserver') 
+    parserShowLbVserverGroup = parserShowLbVserver.add_mutually_exclusive_group()
+    parserShowLbVserverGroup.add_argument('--attr', dest='attr', nargs='*', help='Show only the specified attribute(s)') 
+    parserShowLbVserverGroup.add_argument('--services', dest='services', help='Show services bound to lb vserver') 
+    parserShowCsVservers = subparserShow.add_parser('cs-vservers', help='Show all cs vservers')
+    parserShowServices = subparserShow.add_parser('services', help='Show all services')
+    parserShowPrimaryNode = subparserShow.add_parser('primary-node', help='Show which of the two nodes is primary')
+    parserShowSurgeTotal = subparserShow.add_parser('surge-total', help='Show surge total for a lb vserver')
+    parserShowSurgeTotal.add_argument('vserver', help='Show surge total for which lb vserver')
+
     # Getting arguments
     args = parser.parse_args()
 
+    # Assigning global args to variables
     host = args.host
     user = args.user
     passwdFile = args.passwdFile
@@ -279,74 +311,30 @@ def main():
                 print "\t%s: %s" % (arg,getattr(args,arg))
         print "\n"
 
-    # Creating a netscalertool object.
-    netscalertool = NetscalerTool(host,user,passwdFile,debug,dryrun)
+    # Creating a netscalertool instance.
+    netscalertool = Netscalertool(host,user,passwdFile,debug,dryrun)
 
-    # Fetching list of all vservers.
-    if args.getLbVservers:
-        try:
-            output = netscalertool.getLbVservers()
-            format.printList(output)
-        except RuntimeError, e:
-            print >> sys.stderr, "Problem while trying to get list of LB vservers on %s.\n%s" % (host,e)
-            status = 1
+    # What method of the Netscalertool class was called?
+    method = args.subparserName.replace('-','')
 
+    # Calling netscalertool method
+    if method == 'lbvserver':
+        status = netscalertool.lbvserver(args.vserver,attr=args.attr,services=args.services)
+    elif method == 'surgetotal':
+        status = netscalertool.surgetotal(args.vserver)
+    else:
+        status = getattr(netscalertool,method)()
 
-    # Fetching stats on a specific lb vserver.
-    if args.getLbVserver:
-        vserver = args.getLbVserver
-
-        if args.attribute:
-            attributes = args.attribute
-
-        try:
-            output = netscalertool.getLbVserver(vserver)
-            if attributes:
-                format.printDict(output,attributes)
-            else:
-                format.printDict(output)
-        except RuntimeError, e:
-            print >> sys.stderr, "Problem while trying to get info about LB vserver %s on %s.\n%s" % (vserver,host,e)
-            status = 1
-
-
-    # Fetching list of all services.
-    elif args.showServices:
-        try:
-            output = netscalertool.getServices()
-            format.printList(output)
-        except RuntimeError, e:
-            print >> sys.stderr, "Problem while trying to get list of services on %s.\n%s" % (host,e)
-            status = 1
-
-
-    # Fetching list of all cs vservers.
-    elif args.getCsVservers:
-        try:
-            output = netscalertool.getCsVservers()
-            format.printList(output)
-        except RuntimeError, e:
-            print >> sys.stderr, "Problem while trying to get list of CS vservers on %s.\n%s" % (host,e)
-            status = 1
-
-
-    # Fetching the current primary node IP.
-    elif args.primaryNode:
-        try:
-            output = netscalertool.getPrimaryNode()
-            print output
-        except RuntimeError, e:
-            print >> sys.stderr, "Problem while trying to get IP of primary node of %s.\n%s" % (host,e)
-            status = 1
+    sys.exit(1)
 
 
     # Fetching surge queue size for specified vserver
-    elif args.surgeCount:
+    if args.surgeCount:
         vserver = args.surgeCount
         try:
             output = netscalertool.getSurgeCount(vserver)
             if debug:
-                print "Total Surge Queue Size is:"
+                print "\nTotal Surge Queue Size is:"
             print output
         except RuntimeError, e:
             print >> sys.stderr, "Problem getting surge queue size of all services bound to vserver %s.\n%s" % (vserver,e)
@@ -354,7 +342,7 @@ def main():
 
 
     # Grabbing the saved ns config
-    elif args.getSavedNsConfig:
+    if args.getSavedNsConfig:
         try:
             output = netscalertool.getSavedNsConfig()
             print output
@@ -365,7 +353,7 @@ def main():
             pass 
 
     # Grabbing the running ns config
-    elif args.getRunningNsConfig:
+    if args.getRunningNsConfig:
         try:
             output = netscalertool.getRunningNsConfig()
             print output
