@@ -77,7 +77,7 @@ class Netscalertool():
         return passwd
 
 
-    def services(self):
+    def services(self,args):
         object = ['service']
         listOfServices = []
 
@@ -93,7 +93,7 @@ class Netscalertool():
         format.printList(sorted(listOfServices))
 
 
-    def lbvservers(self):
+    def lbvservers(self,args):
         object = ['lbvserver']
         listOfLbVservers = []
 
@@ -109,14 +109,21 @@ class Netscalertool():
         format.printList(sorted(listOfLbVservers))
 
 
-    def lbvserver(self,vserver,**kwargs):
-        if kwargs['attr']:
-            object = ['lbvserver',vserver]
+    def lbvserver(self,args):
+        vserver = args.vserver
+        attr = args.attr
+        services = args.services
+
+        if services:
+            object = ['lbvserver_service_binding',vserver]
             try:
                 output = self.client.getObject(object)
             except RuntimeError, e:
                 print >> sys.stderr, "Problem while trying to get info about LB vserver %s on %s.\n%s" % (vserver,self.host,e)
                 return 1
+
+            for entry in output[object[0]]:
+                print entry['servicename']
 
         else:
             object = ['lbvserver',vserver]
@@ -126,10 +133,14 @@ class Netscalertool():
                 print >> sys.stderr, "Problem while trying to get info about LB vserver %s on %s.\n%s" % (vserver,self.host,e)
                 return 1
 
-            format.printDict(output[object[0]][0])
+            # If we only want to print certain attributes
+            if attr:
+                format.printDict(output[object[0]][0],attr)
+            else:
+                format.printDict(output[object[0]][0])
 
 
-    def csvservers(self):
+    def csvservers(self,args):
         object = ['csvserver']
         listOfCsVservers = []
 
@@ -145,7 +156,7 @@ class Netscalertool():
         format.printList(sorted(listOfCsVservers))
 
 
-    def primarynode(self):
+    def primarynode(self,args):
         object = ['hanode']
 
         try:
@@ -174,26 +185,28 @@ class Netscalertool():
         return listOfBoundServices
 
 
-    def getSavedNsConfig(self):
+    def savedconfig(self,args):
         object = ['nssavedconfig']
 
         try:
             output = self.client.getObject(object)
         except RuntimeError, e:
-            raise RuntimeError(e)
+            print >> sys.stderr, "There was a problem getting the saved ns.conf: ", e
+            return 1
 
-        return output['nssavedconfig']['textblob']
+        print output['nssavedconfig']['textblob']
 
 
-    def getRunningNsConfig(self):
+    def runningconfig(self,args):
         object = ['nsrunningconfig']
 
         try:
             output = self.client.getObject(object)
         except RuntimeError, e:
-            raise RuntimeError(e)
+            print >> sys.stderr, "There was a problem getting the running config: ", e
+            return 1
 
-        return output['nsrunningconfig']['response']
+        print output['nsrunningconfig']['response']
         
 
     def getServiceStats(self,service,*args):
@@ -218,7 +231,8 @@ class Netscalertool():
         return DictOfServiceStats
 
 
-    def surgetotal(self,vserver):
+    def surgetotal(self,args):
+        vserver = args.vserver
         surgeCountTotal = 0
 
         try:
@@ -241,18 +255,9 @@ class Netscalertool():
             surgeCountTotal += surge
 
         if self.debug:
-            print "Total Surge Queue Size is:"
+            print "\nTotal Surge Queue Size is:"
         print surgeCountTotal
 
-def mapArgToMethod(object,arg):
-    try:
-        # Checking to see if method actually exists
-        object = globals()[object]
-
-        return method
-    except KeyError:
-        raise argparse.ArgumentTypeError("%s is not a valid option." % arg)
-             
 
 def main():
 
@@ -282,12 +287,14 @@ def main():
     parserShowLbVserver.add_argument('vserver', help='Show stats for which vserver') 
     parserShowLbVserverGroup = parserShowLbVserver.add_mutually_exclusive_group()
     parserShowLbVserverGroup.add_argument('--attr', dest='attr', nargs='*', help='Show only the specified attribute(s)') 
-    parserShowLbVserverGroup.add_argument('--services', dest='services', help='Show services bound to lb vserver') 
+    parserShowLbVserverGroup.add_argument('--services', action='store_true', dest='services', help='Show services bound to lb vserver') 
     parserShowCsVservers = subparserShow.add_parser('cs-vservers', help='Show all cs vservers')
     parserShowServices = subparserShow.add_parser('services', help='Show all services')
     parserShowPrimaryNode = subparserShow.add_parser('primary-node', help='Show which of the two nodes is primary')
     parserShowSurgeTotal = subparserShow.add_parser('surge-total', help='Show surge total for a lb vserver')
     parserShowSurgeTotal.add_argument('vserver', help='Show surge total for which lb vserver')
+    parserShowSavedConfig = subparserShow.add_parser('saved-config', help='Show saved ns config')
+    parserShowRunningConfig = subparserShow.add_parser('running-config', help='Show running ns config')
 
     # Getting arguments
     args = parser.parse_args()
@@ -317,51 +324,7 @@ def main():
     # What method of the Netscalertool class was called?
     method = args.subparserName.replace('-','')
 
-    # Calling netscalertool method
-    if method == 'lbvserver':
-        status = netscalertool.lbvserver(args.vserver,attr=args.attr,services=args.services)
-    elif method == 'surgetotal':
-        status = netscalertool.surgetotal(args.vserver)
-    else:
-        status = getattr(netscalertool,method)()
-
-    sys.exit(1)
-
-
-    # Fetching surge queue size for specified vserver
-    if args.surgeCount:
-        vserver = args.surgeCount
-        try:
-            output = netscalertool.getSurgeCount(vserver)
-            if debug:
-                print "\nTotal Surge Queue Size is:"
-            print output
-        except RuntimeError, e:
-            print >> sys.stderr, "Problem getting surge queue size of all services bound to vserver %s.\n%s" % (vserver,e)
-            status = 1
-
-
-    # Grabbing the saved ns config
-    if args.getSavedNsConfig:
-        try:
-            output = netscalertool.getSavedNsConfig()
-            print output
-        except RuntimeError, e:
-            print >> sys.stderr, "There was a problem getting the saved ns.conf: ", e
-            status = 1
-        except IOError, e:
-            pass 
-
-    # Grabbing the running ns config
-    if args.getRunningNsConfig:
-        try:
-            output = netscalertool.getRunningNsConfig()
-            print output
-        except RuntimeError, e:
-            print >> sys.stderr, "There was a problem getting the running config: ", e
-            status = 1
-        except IOError, e:
-            pass 
+    status = getattr(netscalertool,method)(args)
 
     # Logging out of NetScaler.
     try:
