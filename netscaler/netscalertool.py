@@ -38,9 +38,47 @@ class resolvesAction(argparse.Action):
 
 
 class Shared():
-    def __init__(self,client,args):
-        self.client = client
-        self.debug = args.debug
+    def __init__(self,args):
+        self.host = args.host
+        self.user = args.user
+        self.passwd = self.fetchPasswd(args.passwdFile)
+        self.debug = args.debug    
+        self.dryrun = args.dryrun
+       
+
+    def createClient(self):
+        # Creating a client instance 
+        try:
+            self.client = netscalerapi.Client(self.host,self.user,self.passwd,self.debug)
+        except RuntimeError, e:
+            msg = "Problem creating client instance.\n%s" % (e) 
+            raise RuntimeError(msg)
+
+        # Login using client instance
+        try:
+            self.client.login() 
+        except RuntimeError, e:
+            raise RuntimeError(e)
+
+        return self.client
+
+
+    # Grabs passwd from passwd file.
+    def fetchPasswd(self,passwdFile):
+        try:
+            f = open(passwdFile,'r')
+        except IOError, e:
+            raise IOError(e)
+
+        # Reading contents of passwd file.
+        passwd = f.readline().strip('\n')
+
+        # Closing file handle
+        f.close()
+
+        # Returning passwd
+        return passwd
+
 
     def getBoundServices(self,vserver):
         object = ['lbvserver_binding',vserver]
@@ -61,43 +99,9 @@ class Shared():
 class Show():
     def __init__(self,args):
         self.args = args
-        self.host = self.args.host
-        self.user = self.args.user
-        self.passwd = self.fetchPasswd(self.args.passwdFile)
-        self.debug = self.args.debug    
-        self.dryrun = self.args.dryrun
+        self.shared = Shared(self.args)
+        self.client = self.shared.createClient()
     
-        # Creating a client instance that we can use during
-        # the rest of this program.
-        try:
-            self.client = netscalerapi.Client(self.host,self.user,self.passwd,self.debug)
-        except RuntimeError, e:
-            print >> sys.stderr, "Problem creating client instance.\n%s" % (e)
-            return 1
-
-        # Login
-        try:
-            self.client.login() 
-        except RuntimeError, e:
-            return 1
-
-
-    # Grabs passwd from passwd file.
-    def fetchPasswd(self,passwdFile):
-        try:
-            f = open(passwdFile,'r')
-        except IOError, e:
-            raise IOError(e)
-
-        # Reading contents of passwd file.
-        passwd = f.readline().strip('\n')
-
-        # Closing file handle
-        f.close()
-
-        # Returning passwd
-        return passwd
-
 
     def services(self):
         object = ['service']
@@ -106,8 +110,8 @@ class Show():
         try:
             output = self.client.getObject(object)
         except RuntimeError, e:
-            print >> sys.stderr, "Problem while trying to get list of services on %s.\n%s" % (self.host,e)
-            return 1
+            msg =  "Problem while trying to get list of services on %s.\n%s" % (self.host,e)
+            raise RuntimeError(msg)
 
         for service in output['service']:
             listOfServices.append(service['name'])
@@ -122,8 +126,8 @@ class Show():
         try:
             output = self.client.getObject(object)
         except RuntimeError, e:
-            print >> sys.stderr, "Problem while trying to get list of LB vservers on %s.\n%s" % (self.host,e)
-            return 1
+            msg = "Problem while trying to get list of LB vservers on %s.\n%s" % (self.host,e)
+            raise RuntimeError(msg)
 
         for vserver in output['lbvserver']:
             listOfLbVservers.append(vserver['name'])
@@ -141,8 +145,8 @@ class Show():
             try:
                 output = self.client.getObject(object)
             except RuntimeError, e:
-                print >> sys.stderr, "Problem while trying to get info about LB vserver %s on %s.\n%s" % (vserver,self.host,e)
-                return 1
+                msg = "Problem while trying to get info about LB vserver %s on %s.\n%s" % (vserver,self.host,e)
+                raise RuntimeError(msg)
 
             for entry in output[object[0]]:
                 print entry['servicename']
@@ -152,16 +156,15 @@ class Show():
             try:
                 output = self.client.getObject(object)
             except RuntimeError, e:
-                print >> sys.stderr, "Problem while trying to get info about LB vserver %s on %s.\n%s" % (vserver,self.host,e)
-                return 1
+                msg = "Problem while trying to get info about LB vserver %s on %s.\n%s" % (vserver,self.host,e)
+                raise RuntimeError(msg)
 
             # If we only want to print certain attributes
             if attr:
                 try:
                     format.printDict(output[object[0]][0],attr)
                 except KeyError, e:
-                    print >> sys.stderr, e
-                    return 1
+                    raise KeyError(e)
             else:
                 format.printDict(output[object[0]][0])
 
@@ -173,8 +176,8 @@ class Show():
         try:
             output = self.client.getObject(object)
         except RuntimeError, e:
-            print >> sys.stderr, "Problem while trying to get list of CS vservers on %s.\n%s" % (host,e)
-            return 1
+            msg = "Problem while trying to get list of CS vservers on %s.\n%s" % (host,e)
+            raise RuntimeError(msg)
 
         for vserver in output['csvserver']:
             listOfCsVservers.append(vserver['name'])
@@ -188,8 +191,8 @@ class Show():
         try:
             output = self.client.getObject(object)
         except RuntimeError, e:
-            print >> sys.stderr, "Problem while trying to get IP of primary node of %s.\n%s" % (host,e)
-            return 1
+            msg = "Problem while trying to get IP of primary node of %s.\n%s" % (host,e)
+            raise RuntimeError(msg)
 
         # Grabbing the IP of the current primary
         print output['hanode'][0]['routemonitor']
@@ -201,8 +204,8 @@ class Show():
         try:
             output = self.client.getObject(object)
         except RuntimeError, e:
-            print >> sys.stderr, "There was a problem getting the saved ns.conf: ", e
-            return 1
+            msg = "There was a problem getting the saved ns.conf: ", e
+            raise RuntimeError(msg)
 
         print output['nssavedconfig']['textblob']
 
@@ -213,8 +216,8 @@ class Show():
         try:
             output = self.client.getObject(object)
         except RuntimeError, e:
-            print >> sys.stderr, "There was a problem getting the running config: ", e
-            return 1
+            msg = "There was a problem getting the running config: ", e
+            raise RuntimeError(msg)
 
         print output['nsrunningconfig']['response']
         
@@ -236,7 +239,8 @@ class Show():
             try:
                 DictOfServiceStats[stat] = output['service'][0][stat]
             except KeyError, e:
-                print >> sys.stderr, "%s is not a valid stat." % (stat)
+                msg = "%s is not a valid stat." % (stat)
+                raise KeyError(msg)
 
         return DictOfServiceStats
 
@@ -244,36 +248,32 @@ class Show():
     def surgetotal(self):
         vserver = self.args.vserver
         surgeCountTotal = 0
-        shared = Shared(self.client,self.args)
 
         try:
-            output = shared.getBoundServices(vserver)
+            output = self.shared.getBoundServices(vserver)
         except RuntimeError, e:
-            print >> sys.stderr, "Problem getting bound services to %s.\n%s" % (vserver,e)
-            return 1
+            msg = "Problem getting bound services to %s.\n%s" % (vserver,e)
+            raise RuntimeError(msg)
 
         # Going through the list of services to get surge count.
         for service in output:
             try:
                 output = self.getServiceStats(service,'surgecount')
             except RuntimeError, e:
-                print >> sys.stderr, "Problem getting surgecount of service %s.\n%s" % (service,e)
-                return 1
+                msg = "Problem getting surgecount of service %s.\n%s" % (service,e)
+                raise RuntimeError(msg)
 
             surge = int(output['surgecount'])
-            if self.debug:
+            if self.args.debug:
                 print "%s: %d" % (service,surge)
             surgeCountTotal += surge
 
-        if self.debug:
+        if self.args.debug:
             print "\nTotal Surge Queue Size is:"
         print surgeCountTotal
 
 
 def main():
-
-    # Exit status
-    status = 0
 
     # Created parser.
     parser = argparse.ArgumentParser()
@@ -338,13 +338,14 @@ def main():
     except KeyError:
         raise argparse.ArgumentTypeError("%s is not a valid subparser." % args.topSubparserName)
 
-    # Creating instance and calling method
+    # Creating instance and calling one of its method
     try:
         netscalerTool = klass(args)
         getattr(netscalerTool,method)()
-    except RuntimeError, e:
-        print >> sys.stderr, e
-        status = 1
+    except (RuntimeError,KeyError), e:
+        #print >> sys.stderr, str(e.message).strip('\'')
+        print >> sys.stderr, "\n", str(e[0]).strip('\'')
+        return 1
 
     # Logging out of NetScaler.
     try:
@@ -353,7 +354,8 @@ def main():
         print >> sys.stderr, e
 
     # Exiting program
-    return status
+    return 0
+
 
 # Run the script only if the script
 # itself is called directly.

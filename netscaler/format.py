@@ -11,7 +11,7 @@ def printDict(dict,*args):
             try:
                 print "%s: %s" % (key,dict[key])
             except KeyError:
-                e = "%s is not a valid attribute" % (key)
+                e = "%s is not a valid attribute." % (key)
                 raise KeyError(e)
     else:
         # Print everything
