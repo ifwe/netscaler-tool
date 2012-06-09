@@ -37,14 +37,36 @@ class resolvesAction(argparse.Action):
             setattr(namespace, self.dest, values)
 
 
-class Netscalertool():
-    def __init__(self,host,user,passwdFile,debug,dryrun):
-        self.host = host
-        self.user = user
-        self.passwd = self.fetchPasswd(passwdFile)
-        self.debug = debug    
-        self.dryrun = dryrun
+class Shared():
+    def __init__(self,client,args):
+        self.client = client
+        self.debug = args.debug
 
+    def getBoundServices(self,vserver):
+        object = ['lbvserver_binding',vserver]
+        listOfBoundServices = []
+
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            raise RuntimeError(e)
+
+        for service in output['lbvserver_binding'][0]['lbvserver_service_binding']:
+            listOfBoundServices.append(service['servicename'])
+
+        listOfBoundServices.sort()
+        return listOfBoundServices
+
+
+class Show():
+    def __init__(self,args):
+        self.args = args
+        self.host = self.args.host
+        self.user = self.args.user
+        self.passwd = self.fetchPasswd(self.args.passwdFile)
+        self.debug = self.args.debug    
+        self.dryrun = self.args.dryrun
+    
         # Creating a client instance that we can use during
         # the rest of this program.
         try:
@@ -53,7 +75,7 @@ class Netscalertool():
             print >> sys.stderr, "Problem creating client instance.\n%s" % (e)
             return 1
 
-        # Let's login
+        # Login
         try:
             self.client.login() 
         except RuntimeError, e:
@@ -77,7 +99,7 @@ class Netscalertool():
         return passwd
 
 
-    def services(self,args):
+    def services(self):
         object = ['service']
         listOfServices = []
 
@@ -93,7 +115,7 @@ class Netscalertool():
         format.printList(sorted(listOfServices))
 
 
-    def lbvservers(self,args):
+    def lbvservers(self):
         object = ['lbvserver']
         listOfLbVservers = []
 
@@ -109,10 +131,10 @@ class Netscalertool():
         format.printList(sorted(listOfLbVservers))
 
 
-    def lbvserver(self,args):
-        vserver = args.vserver
-        attr = args.attr
-        services = args.services
+    def lbvserver(self):
+        vserver = self.args.vserver
+        attr = self.args.attr
+        services = self.args.services
 
         if services:
             object = ['lbvserver_service_binding',vserver]
@@ -135,12 +157,16 @@ class Netscalertool():
 
             # If we only want to print certain attributes
             if attr:
-                format.printDict(output[object[0]][0],attr)
+                try:
+                    format.printDict(output[object[0]][0],attr)
+                except KeyError, e:
+                    print >> sys.stderr, e
+                    return 1
             else:
                 format.printDict(output[object[0]][0])
 
 
-    def csvservers(self,args):
+    def csvservers(self):
         object = ['csvserver']
         listOfCsVservers = []
 
@@ -156,7 +182,7 @@ class Netscalertool():
         format.printList(sorted(listOfCsVservers))
 
 
-    def primarynode(self,args):
+    def primarynode(self):
         object = ['hanode']
 
         try:
@@ -169,23 +195,7 @@ class Netscalertool():
         print output['hanode'][0]['routemonitor']
 
 
-    def getBoundServices(self,vserver):
-        object = ['lbvserver_binding',vserver]
-        listOfBoundServices = []
-
-        try:
-            output = self.client.getObject(object)
-        except RuntimeError, e:
-            raise RuntimeError(e)
-
-        for service in output['lbvserver_binding'][0]['lbvserver_service_binding']:
-            listOfBoundServices.append(service['servicename'])
-
-        listOfBoundServices.sort()
-        return listOfBoundServices
-
-
-    def savedconfig(self,args):
+    def savedconfig(self):
         object = ['nssavedconfig']
 
         try:
@@ -197,7 +207,7 @@ class Netscalertool():
         print output['nssavedconfig']['textblob']
 
 
-    def runningconfig(self,args):
+    def runningconfig(self):
         object = ['nsrunningconfig']
 
         try:
@@ -231,12 +241,13 @@ class Netscalertool():
         return DictOfServiceStats
 
 
-    def surgetotal(self,args):
-        vserver = args.vserver
+    def surgetotal(self):
+        vserver = self.args.vserver
         surgeCountTotal = 0
+        shared = Shared(self.client,self.args)
 
         try:
-            output = self.getBoundServices(vserver)
+            output = shared.getBoundServices(vserver)
         except RuntimeError, e:
             print >> sys.stderr, "Problem getting bound services to %s.\n%s" % (vserver,e)
             return 1
@@ -277,10 +288,10 @@ def main():
     parser.add_argument("--dryrun", action="store_true", dest="dryrun", help="Dryrun.", default=False)
 
     # Created subparser. 
-    subparser = parser.add_subparsers()
+    subparser = parser.add_subparsers(dest='topSubparserName')
 
-    # Created show parser to subparser.
-    parserShow = subparser.add_parser('show', help='sub-command for showing objects on the NetScaler')
+    # Created show subparser.
+    parserShow = subparser.add_parser('show', help='sub-command for showing objects')
     subparserShow = parserShow.add_subparsers(dest='subparserName')
     parserShowLbVservers = subparserShow.add_parser('lb-vservers', help='Show all lb vservers')
     parserShowLbVserver = subparserShow.add_parser('lb-vserver', help='Show stat(s) of a specific lb vserver')
@@ -296,19 +307,19 @@ def main():
     parserShowSavedConfig = subparserShow.add_parser('saved-config', help='Show saved ns config')
     parserShowRunningConfig = subparserShow.add_parser('running-config', help='Show running ns config')
 
+    # Created compare subparser.
+    parserCmp = subparser.add_parser('cmp', help='sub-command for comparing objects')
+    subparserCmp = parserCmp.add_subparsers(dest='subparserName')
+    parserCmpConfigs = subparserCmp.add_parser('configs', help='Alerts if there is any diff between running and saved ns configs')
+    parserCmpLbVservers = subparserCmp.add_parser('lb-vservers', help='Compare configs between two vservers')
+    parserCmpLbVservers.add_argument('cmpVserver1', metavar='VSERVER1')
+    parserCmpLbVservers.add_argument('cmpVserver2', metavar='VSERVER2')
+
     # Getting arguments
     args = parser.parse_args()
 
-    # Assigning global args to variables
-    host = args.host
-    user = args.user
-    passwdFile = args.passwdFile
-    debug = args.debug
-    dryrun = args.dryrun
-    noDns = args.noDns
-
     # Showing user flags and their values
-    if debug:
+    if args.debug:
         print "Using the following args:"
         for arg in dir(args):
             regex = "(^_{1,2}|^read_file|^read_module|^ensure_value)"
@@ -318,17 +329,26 @@ def main():
                 print "\t%s: %s" % (arg,getattr(args,arg))
         print "\n"
 
-    # Creating a netscalertool instance.
-    netscalertool = Netscalertool(host,user,passwdFile,debug,dryrun)
-
-    # What method of the Netscalertool class was called?
+    # Getting method, based on subparser called from argparse.
     method = args.subparserName.replace('-','')
+    
+    # Getting class, based on subparser called from argparse.
+    try:
+        klass = globals()[args.topSubparserName.capitalize()]
+    except KeyError:
+        raise argparse.ArgumentTypeError("%s is not a valid subparser." % args.topSubparserName)
 
-    status = getattr(netscalertool,method)(args)
+    # Creating instance and calling method
+    try:
+        netscalerTool = klass(args)
+        getattr(netscalerTool,method)()
+    except RuntimeError, e:
+        print >> sys.stderr, e
+        status = 1
 
     # Logging out of NetScaler.
     try:
-        netscalertool.client.logout()
+        netscalerTool.client.logout()
     except RuntimeError, e:
         print >> sys.stderr, e
 
