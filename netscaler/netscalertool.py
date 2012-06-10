@@ -96,6 +96,30 @@ class Shared():
         return listOfBoundServices
 
 
+    def getSavedConfig(self):
+        object = ['nssavedconfig']
+
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            msg = "There was a problem getting the saved config: %s" % (e)
+            raise RuntimeError(msg)
+
+        return output['nssavedconfig']['textblob']
+
+
+    def getRunningConfig(self):
+        object = ['nsrunningconfig']
+
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            msg = "There was a problem getting the running config: %s" % (e)
+            raise RuntimeError(msg)
+
+        return output['nsrunningconfig']['response']
+
+
 class Show():
     def __init__(self,args):
         self.args = args
@@ -199,27 +223,11 @@ class Show():
 
 
     def savedconfig(self):
-        object = ['nssavedconfig']
-
-        try:
-            output = self.client.getObject(object)
-        except RuntimeError, e:
-            msg = "There was a problem getting the saved ns.conf: ", e
-            raise RuntimeError(msg)
-
-        print output['nssavedconfig']['textblob']
+        print self.shared.getSavedConfig()
 
 
     def runningconfig(self):
-        object = ['nsrunningconfig']
-
-        try:
-            output = self.client.getObject(object)
-        except RuntimeError, e:
-            msg = "There was a problem getting the running config: ", e
-            raise RuntimeError(msg)
-
-        print output['nsrunningconfig']['response']
+        print self.shared.getRunningConfig()
         
 
     def getServiceStats(self,service,*args):
@@ -273,6 +281,56 @@ class Show():
         print surgeCountTotal
 
 
+class Compare():
+    def __init__(self,args):
+        self.args = args
+        self.shared = Shared(self.args)
+        self.client = self.shared.createClient()
+
+
+    def cleanupConfig(self,config,ignoreREs):
+        newConfig = []
+        for line in config:
+            if not re.match(ignoreREs,line):
+                newConfig.append(line)
+
+        return newConfig
+   
+
+    def configs(self):
+        # Regex that will be used to ignore lines we know are only in saved or
+        # running configs, which will always show up in a diff.
+        ignoreREs = "^# Last modified|^set appfw|^set lb monitor https? HTTP"
+        
+        # Getting saved and running configs. Splitting on newline
+        # to make it easier to compare the two.
+        saved = self.shared.getSavedConfig().split('\n')
+        running = self.shared.getRunningConfig().split('\n')
+
+        # Parsing configs and creating new lists that exclude
+        # anything lines that much ignoreREs.
+        saved = self.cleanupConfig(saved,ignoreREs)
+        running = self.cleanupConfig(running,ignoreREs)
+
+        # If the configs have differences, why have a problem
+        if saved != running:
+            # Converted lists to sets so we can find differences
+            diff = set(saved) ^ set(running)
+
+            # Returned the sets to lists for formatting purposes
+            msg = "Saved and running configs are different:\n%s" % ('\n'.join(list(diff)))
+            raise RuntimeError(msg)
+
+
+    def lbvservers(self):
+        vserver1 = self.args.vserver1
+        vserver2 = self.args.vserver2
+
+        if vserver1 == vserver2:
+            msg = "%s and %s are the same vserver. Please pick two different vservers." % (vserver1,vserver2)
+            raise RuntimeError(msg)
+    
+
 def main():
 
     # Created parser.
@@ -308,18 +366,19 @@ def main():
     parserShowRunningConfig = subparserShow.add_parser('running-config', help='Show running ns config')
 
     # Created compare subparser.
-    parserCmp = subparser.add_parser('cmp', help='sub-command for comparing objects')
+    parserCmp = subparser.add_parser('compare', help='sub-command for comparing objects')
     subparserCmp = parserCmp.add_subparsers(dest='subparserName')
     parserCmpConfigs = subparserCmp.add_parser('configs', help='Alerts if there is any diff between running and saved ns configs')
     parserCmpLbVservers = subparserCmp.add_parser('lb-vservers', help='Compare configs between two vservers')
-    parserCmpLbVservers.add_argument('cmpVserver1', metavar='VSERVER1')
-    parserCmpLbVservers.add_argument('cmpVserver2', metavar='VSERVER2')
+    parserCmpLbVservers.add_argument('vserver1', metavar='VSERVER1')
+    parserCmpLbVservers.add_argument('vserver2', metavar='VSERVER2')
 
     # Getting arguments
     args = parser.parse_args()
+    debug = args.debug
 
     # Showing user flags and their values
-    if args.debug:
+    if debug:
         print "Using the following args:"
         for arg in dir(args):
             regex = "(^_{1,2}|^read_file|^read_module|^ensure_value)"
@@ -343,8 +402,8 @@ def main():
         netscalerTool = klass(args)
         getattr(netscalerTool,method)()
     except (RuntimeError,KeyError), e:
-        #print >> sys.stderr, str(e.message).strip('\'')
-        print >> sys.stderr, "\n", str(e[0]).strip('\'')
+        if debug:
+            print >> sys.stderr, "\n", str(e[0]).strip('\'')
         return 1
 
     # Logging out of NetScaler.
