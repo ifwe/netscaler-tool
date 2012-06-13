@@ -3,6 +3,7 @@ import json
 import httplib2
 import urllib
 import sys
+import socket
 
 class Client():
     def __init__(self,host,user,passwd,debug):
@@ -23,7 +24,11 @@ class Client():
 
         #create a HTTP object, and use it to submit a POST request
         http = httplib2.Http()
-        response, content = http.request(url, 'POST', body=payload_encoded, headers=headers)
+        try:
+            response, content = http.request(url, 'POST', body=payload_encoded, headers=headers)
+        except socket.error, e: 
+            msg = "Problem connecting to netscaler %s:\n%s" % (self.host,e)
+            raise RuntimeError(msg)
 
         data = json.loads(content)
         errorcode = data["errorcode"]
