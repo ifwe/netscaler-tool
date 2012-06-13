@@ -39,6 +39,7 @@ class resolvesAction(argparse.Action):
 
 class Shared():
     def __init__(self,args):
+        self.args = args
         self.host = args.host
         self.user = args.user
         self.passwd = self.fetchPasswd(args.passwdFile)
@@ -120,6 +121,36 @@ class Shared():
         return output['nsrunningconfig']['response']
 
 
+    def getLbBoundServices(self,vserver):
+        listOfServices = []
+
+        object = ['lbvserver_service_binding',vserver]
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            msg = "Problem while trying to get info about LB vserver %s on %s.\n%s" % (vserver,self.host,e)
+            raise RuntimeError(msg)
+
+        for entry in output[object[0]]:
+            listOfServices.append(entry['servicename'])
+
+        return listOfServices
+
+
+    def getLb(self):
+        attr = self.args.attr
+        vserver = self.args.vserver
+
+        object = ['lbvserver',vserver]
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            msg = "Problem while trying to get info about LB vserver %s on %s.\n%s" % (vserver,self.host,e)
+            raise RuntimeError(msg)
+
+        return output[object[0]][0],attr
+
+
 class Show():
     def __init__(self,args):
         self.args = args
@@ -165,32 +196,11 @@ class Show():
         services = self.args.services
 
         if services:
-            object = ['lbvserver_service_binding',vserver]
-            try:
-                output = self.client.getObject(object)
-            except RuntimeError, e:
-                msg = "Problem while trying to get info about LB vserver %s on %s.\n%s" % (vserver,self.host,e)
-                raise RuntimeError(msg)
-
-            for entry in output[object[0]]:
-                print entry['servicename']
-
+            output = self.shared.getLbBoundServices(vserver)
+            format.printList(output)
         else:
-            object = ['lbvserver',vserver]
-            try:
-                output = self.client.getObject(object)
-            except RuntimeError, e:
-                msg = "Problem while trying to get info about LB vserver %s on %s.\n%s" % (vserver,self.host,e)
-                raise RuntimeError(msg)
-
-            # If we only want to print certain attributes
-            if attr:
-                try:
-                    format.printDict(output[object[0]][0],attr)
-                except KeyError, e:
-                    raise KeyError(e)
-            else:
-                format.printDict(output[object[0]][0])
+            output,attr = self.shared.getLb()
+            format.printDict(output,attr)
 
 
     def csvservers(self):
@@ -323,12 +333,25 @@ class Compare():
 
 
     def lbvservers(self):
+        dif = None
         vserver1 = self.args.vserver1
         vserver2 = self.args.vserver2
 
+        # If the user tries to compare the same vservers
         if vserver1 == vserver2:
             msg = "%s and %s are the same vserver. Please pick two different vservers." % (vserver1,vserver2)
             raise RuntimeError(msg)
+
+        # Getting a list of bound services to each vserver so that we
+        # can compare.
+        listOfServices1 = self.shared.getLbBoundServices(vserver1)
+        listOfServices2 = self.shared.getLbBoundServices(vserver2)
+
+        # If we get a diff, we will let the user know
+        diff = set(listOfServices1) ^ set(listOfServices2)
+        if diff:
+            msg = "We got a diff:\n%s" % (list(diff))
+            raise RuntimeError(msg) 
     
 
 def main():
@@ -402,8 +425,7 @@ def main():
         netscalerTool = klass(args)
         getattr(netscalerTool,method)()
     except (RuntimeError,KeyError), e:
-        if debug:
-            print >> sys.stderr, "\n", str(e[0]).strip('\'')
+        print >> sys.stderr, "\n", str(e[0]).strip('\''), "\n"
         return 1
 
     # Logging out of NetScaler.
