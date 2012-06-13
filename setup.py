@@ -18,7 +18,7 @@ setup(
 
     entry_points = {
         'console_scripts': [
-            'netscaler-tool = netscaler.netscalertool:main',
+            'netscaler-tool = netscalertool.netscalertool:main',
             ]
     },
 )
