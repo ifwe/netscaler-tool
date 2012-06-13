@@ -9,7 +9,7 @@ setup(
 
     author = "Brian Glogower",
     author_email = "bglogower@tagged.com",
-    description = "Repository of python functions for retrieving and modifying NetScaler settings.",
+    description = "Nitro API tool for managing NetScalers.",
     license = "WTFPL",
     install_requires=[
         "httplib2",
