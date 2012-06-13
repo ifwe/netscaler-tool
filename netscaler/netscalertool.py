@@ -4,10 +4,38 @@ import sys
 import argparse
 import json
 import netscalerapi
-import format
 import re
 import socket
 import subprocess
+
+# Used for formatting
+def printList(list):
+    for entry in list:
+        print entry
+
+    return 0
+
+
+# Used for formatting
+def printDict(dict,*args):
+    # Testing to see if any attrs were passed
+    # in and if so only print those key/values.
+    if args[0]:
+        # Print specific keys
+        for key in sorted(args[0]):
+            try:
+                print "%s: %s" % (key,dict[key])
+            except KeyError:
+                e = "%s is not a valid attribute." % (key)
+                raise KeyError(e)
+
+    # Print everything
+    else:
+        # Print everything
+        for key in sorted(dict.keys()):
+            print "%s: %s" % (key,dict[key])
+    
+    return 0
 
 # Used by argparse to see if the host specified is alive (pingable)
 # Maybe we can have it check the DB to see if the host is a netscaler as well.
@@ -171,7 +199,7 @@ class Show():
         for service in output['service']:
             listOfServices.append(service['name'])
 
-        format.printList(sorted(listOfServices))
+        printList(sorted(listOfServices))
 
 
     def lbvservers(self):
@@ -187,7 +215,7 @@ class Show():
         for vserver in output['lbvserver']:
             listOfLbVservers.append(vserver['name'])
 
-        format.printList(sorted(listOfLbVservers))
+        printList(sorted(listOfLbVservers))
 
 
     def lbvserver(self):
@@ -197,10 +225,10 @@ class Show():
 
         if services:
             output = self.shared.getLbBoundServices(vserver)
-            format.printList(output)
+            printList(output)
         else:
             output,attr = self.shared.getLb()
-            format.printDict(output,attr)
+            printDict(output,attr)
 
 
     def csvservers(self):
@@ -216,7 +244,7 @@ class Show():
         for vserver in output['csvserver']:
             listOfCsVservers.append(vserver['name'])
 
-        format.printList(sorted(listOfCsVservers))
+        printList(sorted(listOfCsVservers))
 
 
     def primarynode(self):
@@ -350,7 +378,7 @@ class Compare():
         # If we get a diff, we will let the user know
         diff = set(listOfServices1) ^ set(listOfServices2)
         if diff:
-            msg = "We got a diff:\n%s" % (list(diff))
+            msg = "The following services are either bound to %s or %s but not both:\n%s" % (vserver1,vserver2,'\n'.join(sorted(list(diff))))
             raise RuntimeError(msg) 
     
 
