@@ -452,7 +452,7 @@ def main():
     try:
         netscalerTool = klass(args)
         getattr(netscalerTool,method)()
-    except (RuntimeError,KeyError), e:
+    except (RuntimeError,KeyError,IOError), e:
         print >> sys.stderr, "\n", str(e[0]).strip('\''), "\n"
         return 1
 
