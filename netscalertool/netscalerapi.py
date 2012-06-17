@@ -1,9 +1,21 @@
 import logging
-import json
 import httplib2
 import urllib
 import sys
 import socket
+
+# simplejson is used on CentOS 5, while
+# json is used on CentOS 6.
+# Trying to import json first, followed
+# by simplejson second if there is a failure
+try:
+    import json
+except ImportError:
+    try: 
+        import simplejson
+    except ImportError, e:
+        print >> sys.stderr, e
+        sys.exit(1)
 
 class Client():
     def __init__(self,host,user,passwd,debug):
