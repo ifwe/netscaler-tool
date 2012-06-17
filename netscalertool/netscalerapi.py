@@ -1,4 +1,3 @@
-import logging
 import httplib2
 import urllib
 import sys
@@ -12,7 +11,7 @@ try:
     import json
 except ImportError:
     try: 
-        import simplejson
+        import simplejson as json
     except ImportError, e:
         print >> sys.stderr, e
         sys.exit(1)

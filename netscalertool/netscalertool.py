@@ -2,7 +2,6 @@
 
 import sys
 import argparse
-import json
 import netscalerapi
 import re
 import socket
