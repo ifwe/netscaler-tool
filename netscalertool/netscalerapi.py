@@ -16,7 +16,7 @@ except ImportError:
         print >> sys.stderr, e
         sys.exit(1)
 
-class Client():
+class Client:
     def __init__(self,host,user,passwd,debug):
         self.host = host
         self.user = user

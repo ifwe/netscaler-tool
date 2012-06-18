@@ -64,7 +64,7 @@ class resolvesAction(argparse.Action):
             setattr(namespace, self.dest, values)
 
 
-class Shared():
+class Shared:
     def __init__(self,args):
         self.args = args
         self.host = args.host
@@ -178,7 +178,7 @@ class Shared():
         return output[object[0]][0],attr
 
 
-class Show():
+class Show:
     def __init__(self,args):
         self.args = args
         self.shared = Shared(self.args)
@@ -318,7 +318,7 @@ class Show():
         print surgeCountTotal
 
 
-class Compare():
+class Compare:
     def __init__(self,args):
         self.args = args
         self.shared = Shared(self.args)
