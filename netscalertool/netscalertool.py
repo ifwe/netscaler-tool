@@ -387,7 +387,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     # Global args
-    parser.add_argument("--host", dest='host', metavar='NETSCALER', action=isPingableAction, required=True, help="IP or name of NetScaler.")
+    parser.add_argument("host", metavar='NETSCALER', action=isPingableAction, help="IP or name of NetScaler.")
     parser.add_argument("--user", dest="user", help="NetScaler user account.", default="***REMOVED***")
     parser.add_argument("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
     parser.add_argument("--passwd-file", dest="passwdFile", help="Where password is stored for user. Default is /etc/tagops/netscalertool.conf.", default="/etc/tagops/netscalertool.conf")
@@ -445,7 +445,9 @@ def main():
     try:
         klass = globals()[args.topSubparserName.capitalize()]
     except KeyError:
-        raise argparse.ArgumentTypeError("%s is not a valid subparser." % args.topSubparserName)
+        msg = "\n%s is not a valid subparser." % (args.topSubparserName)
+        print >> sys.stderr, msg
+        return 1
 
     # Creating instance and calling one of its method
     try:
