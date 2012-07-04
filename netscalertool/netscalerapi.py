@@ -23,6 +23,9 @@ class Client:
         self.passwd = passwd
         self.debug = debug
 
+        #if self.debug:
+        #    httplib2.debuglevel=4
+
 
     def login(self):
         #set the headers and the base URL
@@ -63,15 +66,18 @@ class Client:
         headers = {'Content-type': 'application/x-www-form-urlencoded', 'Cookie': 'sessionid='+self.sessionID}
         url = "http://%s/nitro/v1/config/" % (self.host)
 
-        #construct the payload with URL encoding
-        payload = {"object":""}
+        # construct the payload with URL encoding
+        payload = {"object":{"logout":{}}}
         payload_encoded = urllib.urlencode(payload)
 
-        #create a HTTP object, and use it to submit a POST request
+        # create a HTTP object, and use it to submit a POST request
         http = httplib2.Http()
         response, content = http.request(url, 'POST', body=payload_encoded, headers=headers)
 
-        if content != "(null)":
+        # getting the errorcode to see if theere was a problem 
+        error = json.loads(content)['errorcode']
+
+        if error != 0:
             data = json.loads(content)
             msg = "\nCouldn't logout: %s" % (data["message"])
             raise RuntimeError(msg)
