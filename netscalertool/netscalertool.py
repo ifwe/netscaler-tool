@@ -185,6 +185,22 @@ class Show:
         self.client = self.shared.createClient()
     
 
+    def servers(self):
+        object = ['server']
+        listOfServers = []
+
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            msg =  "Problem while trying to get list of servers on %s.\n%s" % (self.host,e)
+            raise RuntimeError(msg)
+
+        for server in output['server']:
+            listOfServers.append(server['name'])
+
+        printList(sorted(listOfServers))
+
+
     def services(self):
         object = ['service']
         listOfServices = []
@@ -408,6 +424,7 @@ def main():
     parserShowLbVserverGroup.add_argument('--attr', dest='attr', nargs='*', help='Shows only the specified attribute(s)') 
     parserShowLbVserverGroup.add_argument('--services', action='store_true', dest='services', help='Shows services bound to lb vserver') 
     parserShowCsVservers = subparserShow.add_parser('cs-vservers', help='Shows all cs vservers')
+    parserShowServers = subparserShow.add_parser('servers', help='Shows all servers')
     parserShowServices = subparserShow.add_parser('services', help='Shows all services')
     parserShowPrimaryNode = subparserShow.add_parser('primary-node', help='Shows which of the two nodes is primary')
     parserShowSurgeTotal = subparserShow.add_parser('surge-total', help='Shows surge total for a lb vserver')
@@ -453,8 +470,8 @@ def main():
     try:
         netscalerTool = klass(args)
         getattr(netscalerTool,method)()
-    except (RuntimeError,KeyError,IOError), e:
-        print >> sys.stderr, "\n", str(e[0]).strip('\''), "\n"
+    except (AttributeError,RuntimeError,KeyError,IOError), e:
+        print >> sys.stderr, "\n", str(e[0]), "\n"
         return 1
 
     # Logging out of NetScaler.
