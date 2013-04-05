@@ -109,7 +109,7 @@ class Shared:
 
 
     def getBoundServices(self,vserver):
-        object = ['lbvserver_binding',vserver]
+        object = ["lbvserver_binding",vserver]
         listOfBoundServices = []
 
         try:
@@ -125,7 +125,7 @@ class Shared:
 
 
     def getSavedConfig(self):
-        object = ['nssavedconfig']
+        object = ["nssavedconfig"]
 
         try:
             output = self.client.getObject(object)
@@ -137,7 +137,7 @@ class Shared:
 
 
     def getRunningConfig(self):
-        object = ['nsrunningconfig']
+        object = ["nsrunningconfig"]
 
         try:
             output = self.client.getObject(object)
@@ -151,7 +151,7 @@ class Shared:
     def getLbBoundServices(self,vserver):
         listOfServices = []
 
-        object = ['lbvserver_service_binding',vserver]
+        object = ["lbvserver_service_binding",vserver]
         try:
             output = self.client.getObject(object)
         except RuntimeError, e:
@@ -168,7 +168,7 @@ class Shared:
         attr = self.args.attr
         vserver = self.args.vserver
 
-        object = ['lbvserver',vserver]
+        object = ["lbvserver",vserver]
         try:
             output = self.client.getObject(object)
         except RuntimeError, e:
@@ -186,7 +186,7 @@ class Show:
     
 
     def servers(self):
-        object = ['server']
+        object = ["server"]
         listOfServers = []
 
         try:
@@ -202,7 +202,7 @@ class Show:
 
 
     def services(self):
-        object = ['service']
+        object = ["service"]
         listOfServices = []
 
         try:
@@ -218,7 +218,7 @@ class Show:
 
 
     def lbvservers(self):
-        object = ['lbvserver']
+        object = ["lbvserver"]
         listOfLbVservers = []
 
         try:
@@ -247,7 +247,7 @@ class Show:
 
 
     def csvservers(self):
-        object = ['csvserver']
+        object = ["csvserver"]
         listOfCsVservers = []
 
         try:
@@ -263,7 +263,7 @@ class Show:
 
 
     def primarynode(self):
-        object = ['hanode']
+        object = ["hanode"]
 
         try:
             output = self.client.getObject(object)
@@ -285,7 +285,7 @@ class Show:
 
     def getServiceStats(self,service,*args):
         mode = 'stats'
-        object = ['service',service]
+        object = ["service",service]
         DictOfServiceStats = {}
 
         if args:
@@ -294,7 +294,7 @@ class Show:
         try:
             output = self.client.getObject(object,mode)
         except RuntimeError, e:
-            raise RuntimeError(e)
+            raise
 
         for stat in args:
             try:
@@ -304,6 +304,19 @@ class Show:
                 raise KeyError(msg)
 
         return DictOfServiceStats
+
+    
+    def sslcerts(self):
+        object = ["sslcertkey"]
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            raise
+
+        if self.args.debug:
+            print "\n<SSL Cert Name>:<Days to Expiration>"
+        for cert in output['sslcertkey']:
+            print "%s:%s" % (cert['certkey'], cert['daystoexpiration'])
 
 
     def surgetotal(self):
@@ -331,6 +344,7 @@ class Show:
 
         if self.args.debug:
             print "\nTotal Surge Queue Size is:"
+
         print surgeCountTotal
 
 
@@ -411,10 +425,10 @@ def main():
     parser.add_argument("--debug", action="store_true", dest="debug", help="Shows what's going on.", default=False)
     parser.add_argument("--dryrun", action="store_true", dest="dryrun", help="Dryrun.", default=False)
 
-    # Created subparser. 
+    # Creating subparser. 
     subparser = parser.add_subparsers(dest='topSubparserName')
 
-    # Created show subparser.
+    # Creating show subparser.
     parserShow = subparser.add_parser('show', help='sub-command for showing objects')
     subparserShow = parserShow.add_subparsers(dest='subparserName')
     parserShowLbVservers = subparserShow.add_parser('lb-vservers', help='Shows all lb vservers')
@@ -427,12 +441,13 @@ def main():
     parserShowServers = subparserShow.add_parser('servers', help='Shows all servers')
     parserShowServices = subparserShow.add_parser('services', help='Shows all services')
     parserShowPrimaryNode = subparserShow.add_parser('primary-node', help='Shows which of the two nodes is primary')
+    parserShowSslCerts = subparserShow.add_parser('ssl-certs', help='Shows ssl certs')
     parserShowSurgeTotal = subparserShow.add_parser('surge-total', help='Shows surge total for a lb vserver')
     parserShowSurgeTotal.add_argument('vserver', help='Shows surge total for which lb vserver')
     parserShowSavedConfig = subparserShow.add_parser('saved-config', help='Shows saved ns config')
     parserShowRunningConfig = subparserShow.add_parser('running-config', help='Shows running ns config')
 
-    # Created compare subparser.
+    # Creating compare subparser.
     parserCmp = subparser.add_parser('compare', help='sub-command for comparing objects')
     subparserCmp = parserCmp.add_subparsers(dest='subparserName')
     parserCmpConfigs = subparserCmp.add_parser('configs', help='Compares running and saved ns configs')
