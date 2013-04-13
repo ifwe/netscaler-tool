@@ -178,12 +178,63 @@ class Shared:
         return output[object[0]][0],attr
 
 
+    def getServerBinding(self,server):
+        services = []
+        object = ["server_binding",server]
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            msg = "Problem while trying to get server binding for server %s on %s.\n%s" % (server,self.host,e)
+            raise RuntimeError(msg)
+
+        for service in output[object[0]][0]['server_service_binding']:
+            services.append(service['servicename'])
+            
+        return services
+
+
+    def getServerBindingServiceDetails(self,server):
+        services = {}
+        object = ["server_binding",server]
+
+        try:
+            output = self.client.getObject(object)
+        except RuntimeError, e:
+            msg = "Problem while trying to get server binding for server %s on %s.\n%s" % (server,self.host,e)
+            raise RuntimeError(msg)
+
+        return output[object[0]][0]['server_service_binding']
+
+
 class Show:
     def __init__(self,args):
         self.args = args
         self.shared = Shared(self.args)
         self.client = self.shared.createClient()
     
+
+    def server(self):
+        server = self.args.server
+
+        if self.args.services: 
+            try:
+                list = self.shared.getServerBindingServiceDetails(server)
+            except RuntimeError, e:
+                msg =  "Problem while trying to get list of services bound to %s.\n%s" % (server,e)
+                raise RuntimeError(msg)
+
+            for entry in list:
+                print entry
+        else:
+            object = ["server",server]
+            try:
+                output = self.client.getObject(object)
+            except RuntimeError, e:
+                msg =  "Problem while trying to get list of servers on %s.\n%s" % (self.host,e)
+                raise RuntimeError(msg)
+
+            print output['server'][0]
+
 
     def servers(self):
         object = ["server"]
@@ -409,7 +460,64 @@ class Compare:
         if diff:
             msg = "The following services are either bound to %s or %s but not both:\n%s" % (vserver1,vserver2,'\n'.join(sorted(list(diff))))
             raise RuntimeError(msg) 
-    
+
+
+class Enable:
+    def __init__(self,args):
+        self.args = args
+        self.shared = Shared(self.args)
+        self.client = self.shared.createClient()
+
+    def server(self):
+        server = self.args.server
+        services = self.shared.getServerBinding(server)
+
+        if self.args.debug:
+            print "\nServices bound to %s: %s" % (server,services)
+
+        for service in services:
+            properties = {
+                'params': {'action': "enable"},
+                'service': {'name': str(service)},
+            }
+
+            try:
+                print "\nAttempting to enable service %s" % (service)
+                output = self.client.modifyObject(properties)
+            except RuntimeError, e:
+                raise
+
+
+class Disable:
+    def __init__(self,args):
+        self.args = args
+        self.shared = Shared(self.args)
+        self.client = self.shared.createClient()
+
+    def server(self):
+        delay = self.args.delay
+        server = self.args.server
+        services = self.shared.getServerBinding(server)
+
+        if self.args.debug:
+            print "\nServices bound to %s: %s" % (server,services)
+
+        for service in services:
+            properties = {
+                'params': {'action': "disable"},
+                'service': {
+                    'name': str(service),
+                    'delay': delay,
+                    'graceful': 'YES',
+                },
+            }
+
+            try:
+                print "\nAttempting to disable service %s" % (service)
+                output = self.client.modifyObject(properties)
+            except RuntimeError, e:
+                raise
+
 
 def main():
 
@@ -438,6 +546,9 @@ def main():
     parserShowLbVserverGroup.add_argument('--attr', dest='attr', nargs='*', help='Shows only the specified attribute(s)') 
     parserShowLbVserverGroup.add_argument('--services', action='store_true', dest='services', help='Shows services bound to lb vserver') 
     parserShowCsVservers = subparserShow.add_parser('cs-vservers', help='Shows all cs vservers')
+    parserShowServer = subparserShow.add_parser('server', help='Shows server info')
+    parserShowServer.add_argument('server', help='Shows server details')
+    parserShowServer.add_argument('--services', action='store_true', help='Shows services bound to server and their status')
     parserShowServers = subparserShow.add_parser('servers', help='Shows all servers')
     parserShowServices = subparserShow.add_parser('services', help='Shows all services')
     parserShowPrimaryNode = subparserShow.add_parser('primary-node', help='Shows which of the two nodes is primary')
@@ -454,6 +565,19 @@ def main():
     parserCmpLbVservers = subparserCmp.add_parser('lb-vservers', help='Compares configs between two vservers')
     parserCmpLbVservers.add_argument('vserver1', metavar='VSERVER1')
     parserCmpLbVservers.add_argument('vserver2', metavar='VSERVER2')
+
+    # Creating enable subparser.
+    parserEnable = subparser.add_parser('enable', help='sub-command for enable objects')
+    subparserEnable = parserEnable.add_subparsers(dest='subparserName')
+    parserEnableServer = subparserEnable.add_parser('server', help='Enable server')
+    parserEnableServer.add_argument('server', help='Server to enable')
+
+    # Creating disable subparser.
+    parserDisable = subparser.add_parser('disable', help='sub-command for disabling objects')
+    subparserDisable = parserDisable.add_subparsers(dest='subparserName')
+    parserDisableServer = subparserDisable.add_parser('server', help='Disable server')
+    parserDisableServer.add_argument('server', help='Server to disable')
+    parserDisableServer.add_argument('--delay', type=int, help='The time allowed (in seconds) for a graceful shutdown. Defaults to 3 seconds', default=3)
 
     # Getting arguments
     args = parser.parse_args()
@@ -472,7 +596,7 @@ def main():
 
     # Getting method, based on subparser called from argparse.
     method = args.subparserName.replace('-','')
-    
+
     # Getting class, based on subparser called from argparse.
     try:
         klass = globals()[args.topSubparserName.capitalize()]

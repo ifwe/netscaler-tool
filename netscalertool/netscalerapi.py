@@ -115,6 +115,35 @@ class Client:
         return data
 
 
+    def modifyObject(self,properties):
+        headers = {'Content-type': 'application/x-www-form-urlencoded', 'Cookie': 'sessionid='+self.sessionID}
+
+        url = "https://%s/nitro/v1/config" % (self.host)
+        if self.debug:
+            print "URL: ", url
+
+        # construct the payload with URL encoding
+        payload = {"object" : properties}
+        payloadEncoded = urllib.urlencode(payload)
+        if self.debug:
+            print "Payload: ", payload
+            print "Payload Encoded: ", payloadEncoded
+
+        # create a HTTP object, and use it to submit a PUT request
+        http = httplib2.Http(disable_ssl_certificate_validation=True)
+        response, content = http.request(url, 'POST', body=payloadEncoded, headers=headers)
+
+        if self.debug:
+            print "\nResponse: ", response
+            print "\nContent: ", content
+        data = json.loads(content)
+        errorcode = data["errorcode"]
+
+        if response.status != 200:
+            msg = "Error while modifying %s" % (object[1])
+            raise RuntimeError(msg)
+
+
     def saveConfig(client):
         command = "savensconfig"
 
