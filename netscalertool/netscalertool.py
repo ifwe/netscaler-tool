@@ -571,14 +571,14 @@ def main():
     # Creating enable subparser.
     parserEnable = subparser.add_parser('enable', help='sub-command for enable objects')
     subparserEnable = parserEnable.add_subparsers(dest='subparserName')
-    parserEnableServer = subparserEnable.add_parser('server', help='Enable server')
+    parserEnableServer = subparserEnable.add_parser('server', help='Enable server. Will actually enable all servies bound to server')
     parserEnableServer.add_argument('server', help='Server to enable')
 
     # Creating disable subparser.
     parserDisable = subparser.add_parser('disable', help='sub-command for disabling objects')
     subparserDisable = parserDisable.add_subparsers(dest='subparserName')
     parserDisableServer = subparserDisable.add_parser('server', help='Disable server')
-    parserDisableServer.add_argument('server', help='Server to disable')
+    parserDisableServer.add_argument('server', help='Server to disable. Will actually disable all services bound to server')
     parserDisableServer.add_argument('--delay', type=int, help='The time allowed (in seconds) for a graceful shutdown. Defaults to 3 seconds', default=3)
 
     # Getting arguments
