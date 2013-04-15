@@ -482,7 +482,8 @@ class Enable:
             }
 
             try:
-                print "\nAttempting to enable service %s" % (service)
+                if self.args.debug:
+                    print "\nAttempting to enable service %s" % (service)
                 output = self.client.modifyObject(properties)
             except RuntimeError, e:
                 raise
@@ -513,7 +514,8 @@ class Disable:
             }
 
             try:
-                print "\nAttempting to disable service %s" % (service)
+                if self.args.debug:
+                    print "\nAttempting to disable service %s" % (service)
                 output = self.client.modifyObject(properties)
             except RuntimeError, e:
                 raise
@@ -612,12 +614,12 @@ def main():
     except (AttributeError,RuntimeError,KeyError,IOError), e:
         print >> sys.stderr, "\n", str(e[0]), "\n"
         return 1
-
-    # Logging out of NetScaler.
-    try:
-        netscalerTool.client.logout()
-    except RuntimeError, e:
-        print >> sys.stderr, e
+    finally:
+        # Logging out of NetScaler.
+        try:
+            netscalerTool.client.logout()
+        except RuntimeError, e:
+            print >> sys.stderr, e
 
     # Exiting program
     return 0
