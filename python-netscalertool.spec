@@ -33,10 +33,6 @@ Requires:       python-setuptools
 Nitro API tool for managing NetScalers
 
 
-%prep
-%setup -q -n netscalertool-%{version}
-
-
 %build
 %{__python} setup.py build
 
