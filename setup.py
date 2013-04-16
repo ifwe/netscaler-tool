@@ -10,7 +10,7 @@ setup(
     author = "Brian Glogower",
     author_email = "bglogower@tagged.com",
     description = "Nitro API tool for managing NetScalers.",
-    license = "WTFPL",
+    license = "MIT",
     install_requires=[
         "httplib2",
         "argparse",
