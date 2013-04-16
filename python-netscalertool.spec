@@ -17,10 +17,9 @@ Version:        %(%{__python} setup.py --version)
 Release:        1%{?dist}
 Summary:        Nitro API tool for managing NetScalers
 
-Group:          Development/Languages
-License:        WTFPL
+Group:          Development/Tools
+License:        MIT
 URL:            http://www.tagged.com/
-Source0:        netscalertool-%{version}.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 BuildArch:      noarch
@@ -50,6 +49,6 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 %doc
 %{python_sitelib}/*
-%attr(0755,root,siteops) /usr/local/bin/netscaler-tool
+%attr(0755,root,root) /usr/local/bin/netscaler-tool
 
 %changelog
