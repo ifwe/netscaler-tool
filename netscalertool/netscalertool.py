@@ -554,7 +554,7 @@ def main():
     parserShowServers = subparserShow.add_parser('servers', help='Shows all servers')
     parserShowServices = subparserShow.add_parser('services', help='Shows all services')
     parserShowPrimaryNode = subparserShow.add_parser('primary-node', help='Shows which of the two nodes is primary')
-    parserShowSslCerts = subparserShow.add_parser('ssl-certs', help='Shows ssl certs')
+    parserShowSslCerts = subparserShow.add_parser('ssl-certs', help='Shows ssl certs and days until expiring')
     parserShowSurgeTotal = subparserShow.add_parser('surge-total', help='Shows surge total for a lb vserver')
     parserShowSurgeTotal.add_argument('vserver', help='Shows surge total for which lb vserver')
     parserShowSavedConfig = subparserShow.add_parser('saved-config', help='Shows saved ns config')
