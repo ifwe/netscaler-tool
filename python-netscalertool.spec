@@ -48,4 +48,3 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755,root,root) /usr/local/bin/netscaler-tool
 
 %changelog
-
