@@ -31,19 +31,15 @@ Requires:       python-setuptools
 %description
 Nitro API tool for managing NetScalers
 
-
 %build
 %{__python} setup.py build
-
 
 %install
 rm -rf $RPM_BUILD_ROOT
 %{__python} setup.py install -O1 --skip-build --root $RPM_BUILD_ROOT
 
-
 %clean
 rm -rf $RPM_BUILD_ROOT
-
 
 %files
 %defattr(-,root,root,-)
