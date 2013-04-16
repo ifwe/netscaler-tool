@@ -585,6 +585,8 @@ def main():
     args = parser.parse_args()
     debug = args.debug
 
+    retval = 0
+
     # Showing user flags and their values
     if debug:
         print "Using the following args:"
@@ -608,21 +610,24 @@ def main():
         return 1
 
     # Creating instance and calling one of its method
+    # try-try-finally is due to a python 2.4 bug
     try:
-        netscalerTool = klass(args)
-        getattr(netscalerTool,method)()
-    except (AttributeError,RuntimeError,KeyError,IOError), e:
-        print >> sys.stderr, "\n", str(e[0]), "\n"
-        return 1
+        try:
+            netscalerTool = klass(args)
+            getattr(netscalerTool,method)()
+        except (AttributeError,RuntimeError,KeyError,IOError), e:
+            print >> sys.stderr, "\n", str(e[0]), "\n"
+            retval = 1
     finally:
         # Logging out of NetScaler.
         try:
             netscalerTool.client.logout()
         except RuntimeError, e:
             print >> sys.stderr, e
+            retval = 1
 
-    # Exiting program
-    return 0
+        # Exiting program
+        return retval
 
 
 # Run the script only if the script
