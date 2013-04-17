@@ -40,7 +40,7 @@ Nitro API tool for managing NetScalers
 %install
 rm -rf $RPM_BUILD_ROOT
 %{__python} setup.py install -O1 --skip-build --root $RPM_BUILD_ROOT
-mkdir -p /var/log/netscaler-tool/
+mkdir -p $RPM_BUILD_ROOT/var/log/netscaler-tool/
 
 %clean
 rm -rf $RPM_BUILD_ROOT
