@@ -9,14 +9,27 @@ import socket
 import subprocess
 import logging
 
+if os.getenv('SUDO_USER'):
+    user = os.getenv('SUDO_USER')
+else:
+    user = os.getenv('USER')
+
 # Setting up logging
 logFile = '/var/log/netscaler-tool/netscaler-tool.log'
-localHost = socket.gethostbyaddr(socket.gethostname())[1][0]
+try:
+    localHost = socket.gethostbyaddr(socket.gethostname())[1][0]
+except socket.herror, e:
+    localHost = 'localhost'
 logger = logging.getLogger(localHost)
 logger.setLevel(logging.INFO)
-ch = logging.FileHandler(logFile)
+
+try:
+    ch = logging.FileHandler(logFile)
+except IOError, e:
+    print >> sys.stderr, e
+    sys.exit(1)
+
 ch.setLevel(logging.INFO)
-user = os.getenv('USER')
 formatter = logging.Formatter('%(asctime)s %(name)s - %(levelname)s - %(message)s', datefmt='%b %d %H:%M:%S')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
@@ -598,7 +611,6 @@ def main():
     # Getting arguments
     args = parser.parse_args()
     debug = args.debug
-    user = os.getenv('USER')
 
     retval = 0
 
