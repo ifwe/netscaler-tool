@@ -1,11 +1,25 @@
 #!/usr/bin/env python
 
 import sys
+import os
 import argparse
 import netscalerapi
 import re
 import socket
 import subprocess
+import logging
+
+# Setting up logging
+logFile = '/var/log/netscaler-tool/netscaler-tool.log'
+localHost = socket.gethostbyaddr(socket.gethostname())[1][0]
+logger = logging.getLogger(localHost)
+logger.setLevel(logging.INFO)
+ch = logging.FileHandler(logFile)
+ch.setLevel(logging.INFO)
+user = os.getenv('USER')
+formatter = logging.Formatter('%(asctime)s %(name)s - %(levelname)s - %(message)s', datefmt='%b %d %H:%M:%S')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 # Used for formatting
 def printList(list):
@@ -584,6 +598,7 @@ def main():
     # Getting arguments
     args = parser.parse_args()
     debug = args.debug
+    user = os.getenv('USER')
 
     retval = 0
 
@@ -605,8 +620,9 @@ def main():
     try:
         klass = globals()[args.topSubparserName.capitalize()]
     except KeyError:
-        msg = "\n%s is not a valid subparser." % (args.topSubparserName)
+        msg = "%s, %s is not a valid subparser." % (user,args.topSubparserName)
         print >> sys.stderr, msg
+        logger.critical(msg)
         return 1
 
     # Creating instance and calling one of its method
@@ -615,15 +631,21 @@ def main():
         try:
             netscalerTool = klass(args)
             getattr(netscalerTool,method)()
+            msg = "%s executed \'%s\' on %s" % (user,args,args.host)
+            logger.info(msg)
         except (AttributeError,RuntimeError,KeyError,IOError), e:
-            print >> sys.stderr, "\n", str(e[0]), "\n"
+            msg = "%s, %s" % (user,str(e[0]))
+            print >> sys.stderr, "\n", msg, "\n"
+            logger.critical(msg)
             retval = 1
     finally:
         # Logging out of NetScaler.
         try:
             netscalerTool.client.logout()
         except RuntimeError, e:
-            print >> sys.stderr, e
+            msg = "%s, %s" % (user,e) 
+            print >> sys.stderr, msg
+            logger.warn(msg)
             retval = 1
 
         # Exiting program

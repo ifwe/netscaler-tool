@@ -27,6 +27,9 @@ BuildRequires:  python-devel
 Requires:       python-argparse
 Requires:       python-httplib2
 Requires:       python-setuptools
+%if 0%{?rhel} <= 5
+Requires:       python-simplejson
+%endif
 
 %description
 Nitro API tool for managing NetScalers
@@ -37,14 +40,15 @@ Nitro API tool for managing NetScalers
 %install
 rm -rf $RPM_BUILD_ROOT
 %{__python} setup.py install -O1 --skip-build --root $RPM_BUILD_ROOT
+mkdir -p /var/log/netscaler-tool/
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,-)
-%doc
 %{python_sitelib}/*
-%attr(0755,root,root) /usr/local/bin/netscaler-tool
+/usr/local/bin/netscaler-tool
+%attr(0775,-,siteops) /var/log/netscaler-tool/
 
 %changelog
