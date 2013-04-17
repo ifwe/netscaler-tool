@@ -9,6 +9,19 @@ import socket
 import subprocess
 import logging
 
+# simplejson is used on CentOS 5, while
+# json is used on CentOS 6.
+# Trying to import json first, followed
+# by simplejson second if there is a failure
+try:
+    import json
+except ImportError:
+    try:
+        import simplejson as json
+    except ImportError, e:
+        print >> sys.stderr, e
+        sys.exit(1)
+
 if os.getenv('SUDO_USER'):
     user = os.getenv('SUDO_USER')
 else:
@@ -251,7 +264,7 @@ class Show:
                 raise RuntimeError(msg)
 
             for entry in list:
-                print entry
+                print json.dumps(entry)
         else:
             object = ["server",server]
             try:
@@ -260,7 +273,7 @@ class Show:
                 msg =  "Problem while trying to get list of servers on %s.\n%s" % (self.host,e)
                 raise RuntimeError(msg)
 
-            print output['server'][0]
+            print json.dumps(output['server'][0])
 
 
     def servers(self):

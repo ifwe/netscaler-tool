@@ -53,8 +53,8 @@ class Client:
         if self.debug:
             # for debug purposes, print out the headers and the content of the response
             print "Nitro API URL: ", url
-            print "\n", json.dumps(response, sort_keys=False, indent=4)
-            print "\n", json.dumps(content, sort_keys=False, indent=4)
+            print "\n", json.dumps(response)
+            print "\n", json.dumps(content)
 
         data = json.loads(content)
         self.sessionID = data["sessionid"]
