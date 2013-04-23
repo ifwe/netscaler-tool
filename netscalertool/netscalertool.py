@@ -104,12 +104,15 @@ class resolvesAction(argparse.Action):
             setattr(namespace, self.dest, values)
 
 
-class Shared:
+class Shared(object):
     def __init__(self,args):
         self.args = args
         self.host = args.host
         self.user = args.user
-        self.passwd = self.fetchPasswd(args.passwdFile)
+        try:
+            self.passwd = self.fetchPasswd(args.passwdFile)
+        except IOError, e:
+            raise
         self.debug = args.debug    
         self.dryrun = args.dryrun
        
@@ -134,9 +137,9 @@ class Shared:
     # Grabs passwd from passwd file.
     def fetchPasswd(self,passwdFile):
         try:
-            f = open(passwdFile,'r')
-        except IOError, e:
-            raise IOError(e)
+            f = open(passwdFile)
+        except IOError:
+            raise
 
         # Reading contents of passwd file.
         passwd = f.readline().strip('\n')
@@ -246,11 +249,10 @@ class Shared:
         return output[object[0]][0]['server_service_binding']
 
 
-class Show:
+class Show(Shared):
     def __init__(self,args):
-        self.args = args
-        self.shared = Shared(self.args)
-        self.client = self.shared.createClient()
+        super(Show, self).__init__(args)
+        self.client = self.createClient()
     
 
     def server(self):
@@ -258,7 +260,7 @@ class Show:
 
         if self.args.services: 
             try:
-                list = self.shared.getServerBindingServiceDetails(server)
+                list = self.getServerBindingServiceDetails(server)
             except RuntimeError, e:
                 msg =  "Problem while trying to get list of services bound to %s.\n%s" % (server,e)
                 raise RuntimeError(msg)
@@ -330,10 +332,10 @@ class Show:
         services = self.args.services
 
         if services:
-            output = self.shared.getLbBoundServices(vserver)
+            output = self.getLbBoundServices(vserver)
             printList(output)
         else:
-            output,attr = self.shared.getLb()
+            output,attr = self.getLb()
             printDict(output,attr)
 
 
@@ -367,11 +369,11 @@ class Show:
 
 
     def savedconfig(self):
-        print self.shared.getSavedConfig()
+        print self.getSavedConfig()
 
 
     def runningconfig(self):
-        print self.shared.getRunningConfig()
+        print self.getRunningConfig()
         
 
     def getServiceStats(self,service,*args):
@@ -415,7 +417,7 @@ class Show:
         surgeCountTotal = 0
 
         try:
-            output = self.shared.getBoundServices(vserver)
+            output = self.getBoundServices(vserver)
         except RuntimeError, e:
             msg = "Problem getting bound services to %s.\n%s" % (vserver,e)
             raise RuntimeError(msg)
@@ -439,11 +441,10 @@ class Show:
         print surgeCountTotal
 
 
-class Compare:
+class Compare(Shared):
     def __init__(self,args):
-        self.args = args
-        self.shared = Shared(self.args)
-        self.client = self.shared.createClient()
+        super(Compare, self).__init__(args)
+        self.client = self.createClient()
 
 
     def cleanupConfig(self,config,ignoreREs):
@@ -462,8 +463,8 @@ class Compare:
         
         # Getting saved and running configs. Splitting on newline
         # to make it easier to compare the two.
-        saved = self.shared.getSavedConfig().split('\n')
-        running = self.shared.getRunningConfig().split('\n')
+        saved = self.getSavedConfig().split('\n')
+        running = self.getRunningConfig().split('\n')
 
         # Parsing configs and creating new lists that exclude
         # anything lines that much ignoreREs.
@@ -492,8 +493,8 @@ class Compare:
 
         # Getting a list of bound services to each vserver so that we
         # can compare.
-        listOfServices1 = self.shared.getLbBoundServices(vserver1)
-        listOfServices2 = self.shared.getLbBoundServices(vserver2)
+        listOfServices1 = self.getLbBoundServices(vserver1)
+        listOfServices2 = self.getLbBoundServices(vserver2)
 
         # If we get a diff, we will let the user know
         diff = set(listOfServices1) ^ set(listOfServices2)
@@ -502,15 +503,14 @@ class Compare:
             raise RuntimeError(msg) 
 
 
-class Enable:
+class Enable(Shared):
     def __init__(self,args):
-        self.args = args
-        self.shared = Shared(self.args)
-        self.client = self.shared.createClient()
+        super(Enable, self).__init__(args)
+        self.client = self.createClient()
 
     def server(self):
         server = self.args.server
-        services = self.shared.getServerBinding(server)
+        services = self.getServerBinding(server)
 
         if self.args.debug:
             print "\nServices bound to %s: %s" % (server,services)
@@ -529,16 +529,15 @@ class Enable:
                 raise
 
 
-class Disable:
+class Disable(Shared):
     def __init__(self,args):
-        self.args = args
-        self.shared = Shared(self.args)
-        self.client = self.shared.createClient()
+        super(Disable, self).__init__(args)
+        self.client = self.createClient()
 
     def server(self):
         delay = self.args.delay
         server = self.args.server
-        services = self.shared.getServerBinding(server)
+        services = self.getServerBinding(server)
 
         if self.args.debug:
             print "\nServices bound to %s: %s" % (server,services)
@@ -650,16 +649,22 @@ def main():
         logger.critical(msg)
         return 1
 
+    try:
+        netscalerTool = klass(args)
+    except:
+        print >> sys.stderr, sys.exc_info()[1]
+        logger.critical(sys.exc_info()[1])
+        sys.exit(1)
+
     # Creating instance and calling one of its method
     # try-try-finally is due to a python 2.4 bug
     try:
         try:
-            netscalerTool = klass(args)
             getattr(netscalerTool,method)()
             msg = "%s executed \'%s\' on %s" % (user,args,args.host)
             logger.info(msg)
-        except (AttributeError,RuntimeError,KeyError,IOError), e:
-            msg = "%s, %s" % (user,str(e[0]))
+        except (AttributeError,RuntimeError,KeyError,IOError):
+            msg = "%s, %s" % (user,sys.exc_info()[1])
             print >> sys.stderr, "\n", msg, "\n"
             logger.critical(msg)
             retval = 1
