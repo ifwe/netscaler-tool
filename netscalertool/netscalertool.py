@@ -504,8 +504,8 @@ class Compare(Shared):
 
         # Getting a list of bound services to each vserver so that we
         # can compare.
-        listOfServices1 = self.getLbBoundServices(vserver1)
-        listOfServices2 = self.getLbBoundServices(vserver2)
+        listOfServices1 = self.getLbvserverServiceBinding(vserver1)
+        listOfServices2 = self.getLbvserverServiceBinding(vserver2)
 
         # If we get a diff, we will let the user know
         diff = set(listOfServices1) ^ set(listOfServices2)
