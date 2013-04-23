@@ -47,7 +47,7 @@ formatter = logging.Formatter('%(asctime)s %(name)s - %(levelname)s - %(message)
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-# Used for formatting
+# Used for nicely printing a list
 def printList(list):
     for entry in list:
         print entry
@@ -55,7 +55,7 @@ def printList(list):
     return 0
 
 
-# Used for formatting
+# Used for nicely printing a dictionary
 def printDict(dict,*args):
     # Testing to see if any attrs were passed
     # in and if so only print those key/values.
@@ -68,7 +68,6 @@ def printDict(dict,*args):
                 e = "%s is not a valid attribute." % (key)
                 raise KeyError(e)
 
-    # Print everything
     else:
         # Print everything
         for key in sorted(dict.keys()):
@@ -191,20 +190,20 @@ class Shared(object):
         return output['nsrunningconfig']['response']
 
 
-    def getLbBoundServices(self,vserver):
-        listOfServices = []
+    def getLbvserverServiceBinding(self,vserver):
+        servicesIps = {}
 
         object = ["lbvserver_service_binding",vserver]
         try:
-            output = self.client.getObject(object)
+            services = self.client.getObject(object)
         except RuntimeError, e:
             msg = "Problem while trying to get info about LB vserver %s on %s.\n%s" % (vserver,self.host,e)
             raise RuntimeError(msg)
 
-        for entry in output[object[0]]:
-            listOfServices.append(entry['servicename'])
+        for service in services[object[0]]:
+            servicesIps[str(service['servicename'])] = str(service['ipv46'])
 
-        return listOfServices
+        return servicesIps
 
 
     def getLb(self):
@@ -330,10 +329,22 @@ class Show(Shared):
         vserver = self.args.vserver
         attr = self.args.attr
         services = self.args.services
+        servers = self.args.servers
 
         if services:
-            output = self.getLbBoundServices(vserver)
-            printList(output)
+            output = self.getLbvserverServiceBinding(vserver)
+            for service in sorted(output.keys()):
+                print service
+        elif servers:
+            listOfServers = []
+            output = self.getLbvserverServiceBinding(vserver)
+            for service in sorted(output.keys()):
+                try:
+                    # Looking up IPs via DNS instead of asking the Netscaler for its
+                    # service-to-server binding, since it is slow.
+                    print socket.gethostbyaddr(output[service])[0].split('.')[0]
+                except socket.herror, e:
+                    raise RuntimeError(e)
         else:
             output,attr = self.getLb()
             printDict(output,attr)
@@ -585,7 +596,8 @@ def main():
     parserShowLbVserver.add_argument('vserver', help='Shows stats for which vserver') 
     parserShowLbVserverGroup = parserShowLbVserver.add_mutually_exclusive_group()
     parserShowLbVserverGroup.add_argument('--attr', dest='attr', nargs='*', help='Shows only the specified attribute(s)') 
-    parserShowLbVserverGroup.add_argument('--services', action='store_true', dest='services', help='Shows services bound to lb vserver') 
+    parserShowLbVserverGroup.add_argument('--services', action='store_true', help='Shows services bound to specified lb vserver') 
+    parserShowLbVserverGroup.add_argument('--servers', action='store_true', help='Shows servers bound to specified lb vserver') 
     parserShowCsVservers = subparserShow.add_parser('cs-vservers', help='Shows all cs vservers')
     parserShowServer = subparserShow.add_parser('server', help='Shows server info')
     parserShowServer.add_argument('server', help='Shows server details')
