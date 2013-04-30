@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
-import sys
-import os
 import argparse
+import logging
 import netscalerapi
+import os
 import re
 import socket
 import subprocess
-import logging
+import sys
+import tagops
 
 # simplejson is used on CentOS 5, while
 # json is used on CentOS 6.
@@ -75,6 +76,7 @@ def printDict(dict,*args):
     
     return 0
 
+
 # Used by argparse to see if the host specified is alive (pingable)
 # Maybe we can have it check the DB to see if the host is a netscaler as well.
 class isPingableAction(argparse.Action):
@@ -90,20 +92,32 @@ class isPingableAction(argparse.Action):
         setattr(namespace, self.dest, values)
 
 
-class resolvesAction(argparse.Action):
+class isNonProd(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        if not noDns:
-            try:
-                for item in values:
-                    socket.gethostbyaddr(item)
-            except socket.gaierror, e:
-                print >> sys.stderr, "%s does not resolve." % (item)
-                return 1
+        serverList = []
+        sql = "SELECT hostname FROM hosts WHERE environment = 'production' ORDER BY hostname"
+        try:
+            db = tagops.tagOpsReader()
+            db.connect()
+            output = db.execute(sql)
+            db.close()
+        except RuntimeError, e:
+            print >> sys.stderr, e
+            return sys.exit(1)
 
-            setattr(namespace, self.dest, values)
+        for server in output:
+            serverList.append(server[0])
+
+        if values in serverList:
+            msg = "%s is a production server. You can not enable/disable a production server at this time." % (values)
+            print >> sys.stderr, msg
+            logger.info(msg)
+            return sys.exit(1)
+
+        setattr(namespace, self.dest, values)
 
 
-class Shared(object):
+class Base(object):
     def __init__(self,args):
         self.args = args
         self.host = args.host
@@ -248,7 +262,7 @@ class Shared(object):
         return output[object[0]][0]['server_service_binding']
 
 
-class Show(Shared):
+class Show(Base):
     def __init__(self,args):
         super(Show, self).__init__(args)
         self.client = self.createClient()
@@ -452,7 +466,7 @@ class Show(Shared):
         print surgeCountTotal
 
 
-class Compare(Shared):
+class Compare(Base):
     def __init__(self,args):
         super(Compare, self).__init__(args)
         self.client = self.createClient()
@@ -514,7 +528,7 @@ class Compare(Shared):
             raise RuntimeError(msg) 
 
 
-class Enable(Shared):
+class Enable(Base):
     def __init__(self,args):
         super(Enable, self).__init__(args)
         self.client = self.createClient()
@@ -540,7 +554,7 @@ class Enable(Shared):
                 raise
 
 
-class Disable(Shared):
+class Disable(Base):
     def __init__(self,args):
         super(Disable, self).__init__(args)
         self.client = self.createClient()
@@ -623,13 +637,13 @@ def main():
     parserEnable = subparser.add_parser('enable', help='sub-command for enable objects')
     subparserEnable = parserEnable.add_subparsers(dest='subparserName')
     parserEnableServer = subparserEnable.add_parser('server', help='Enable server. Will actually enable all servies bound to server')
-    parserEnableServer.add_argument('server', help='Server to enable')
+    parserEnableServer.add_argument('server', action=isNonProd, help='Server to enable')
 
     # Creating disable subparser.
     parserDisable = subparser.add_parser('disable', help='sub-command for disabling objects')
     subparserDisable = parserDisable.add_subparsers(dest='subparserName')
     parserDisableServer = subparserDisable.add_parser('server', help='Disable server')
-    parserDisableServer.add_argument('server', help='Server to disable. Will actually disable all services bound to server')
+    parserDisableServer.add_argument('server', action=isNonProd, help='Server to disable. Will actually disable all services bound to server')
     parserDisableServer.add_argument('--delay', type=int, help='The time allowed (in seconds) for a graceful shutdown. Defaults to 3 seconds', default=3)
 
     # Getting arguments
@@ -666,7 +680,7 @@ def main():
     except:
         print >> sys.stderr, sys.exc_info()[1]
         logger.critical(sys.exc_info()[1])
-        sys.exit(1)
+        return 1
 
     # Creating instance and calling one of its method
     # try-try-finally is due to a python 2.4 bug
