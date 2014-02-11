@@ -9,6 +9,8 @@ import socket
 import subprocess
 import sys
 import tagops
+import yaml
+
 
 # simplejson is used on CentOS 5, while
 # json is used on CentOS 6.
@@ -27,6 +29,7 @@ if os.getenv('SUDO_USER'):
     user = os.getenv('SUDO_USER')
 else:
     user = os.getenv('USER')
+
 
 # Setting up logging
 logFile = '/var/log/netscaler-tool/netscaler-tool.log'
@@ -48,6 +51,9 @@ formatter = logging.Formatter('%(asctime)s %(name)s - %(levelname)s - %(message)
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
+netscaler_tool_config = "/etc/tagops/netscalertool.conf"
+
+
 # Used for nicely printing a list
 def printList(list):
     for entry in list:
@@ -56,24 +62,20 @@ def printList(list):
     return 0
 
 
-# Used for nicely printing a dictionary
-def printDict(dict,*args):
+# Used for printing certain items of a dictionary with output as json
+def print_items_json(dict,*args):
+    new_dict = {}
     # Testing to see if any attrs were passed
     # in and if so only print those key/values.
     if args[0]:
-        # Print specific keys
         for key in sorted(args[0]):
             try:
-                print "%s: %s" % (key,dict[key])
+                new_dict[key] = dict[key]
             except KeyError:
-                e = "%s is not a valid attribute." % (key)
-                raise KeyError(e)
+                raise
 
-    else:
-        # Print everything
-        for key in sorted(dict.keys()):
-            print "%s: %s" % (key,dict[key])
-    
+    print json.dumps(new_dict)
+
     return 0
 
 
@@ -92,27 +94,47 @@ class isPingableAction(argparse.Action):
         setattr(namespace, self.dest, values)
 
 
-class isNonProd(argparse.Action):
+class allowed_to_manage(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        serverList = []
-        sql = "SELECT hostname FROM hosts WHERE environment = 'production' ORDER BY hostname"
         try:
-            db = tagops.tagOpsReader()
-            db.connect()
-            output = db.execute(sql)
-            db.close()
-        except RuntimeError, e:
+            f = open(netscaler_tool_config,'r')
+        except IOError, e:
             print >> sys.stderr, e
-            return sys.exit(1)
+            sys.exit(1)
 
-        for server in output:
-            serverList.append(server[0])
+        ns_config = yaml.load(f)
+        f.close()
 
-        if values in serverList:
-            msg = "%s is a production server. You can not enable/disable a production server at this time." % (values)
-            print >> sys.stderr, msg
-            logger.info(msg)
-            return sys.exit(1)
+        # Checking if specified server is allowed to be managed
+        if namespace.subparserName == "server":
+            serverList = []
+            sql = "SELECT hostname FROM hosts WHERE environment = 'production' ORDER BY hostname"
+            try:
+                db = tagops.tagOpsReader()
+                db.connect()
+                output = db.execute(sql)
+                db.close()
+            except RuntimeError, e:
+                print >> sys.stderr, e
+                return sys.exit(1)
+
+            for server in output:
+                serverList.append(server[0])
+
+            if values in serverList:
+                msg = "%s is a production server. You can not enable/disable a production server at this time."\
+                      % (values)
+                print >> sys.stderr, msg
+                logger.info(msg)
+                return sys.exit(1)
+        # Checking if specified vserver allowed to be managed
+        elif namespace.subparserName == "vserver":
+            if values not in ns_config["manage_vservers"]:
+                msg = "%s is a vserver that is not allowed to be managed. If you would like to change this, please " \
+                      "update %s." % (values, netscaler_tool_config)
+                print >> sys.stderr, msg
+                logger.info(msg)
+                return sys.exit(1)
 
         setattr(namespace, self.dest, values)
 
@@ -123,7 +145,7 @@ class Base(object):
         self.host = args.host
         self.user = args.user
         try:
-            self.passwd = self.fetchPasswd(args.passwdFile)
+            self.passwd = self.fetch_passwd(netscaler_tool_config)
         except IOError, e:
             raise
         self.debug = args.debug    
@@ -148,16 +170,14 @@ class Base(object):
 
 
     # Grabs passwd from passwd file.
-    def fetchPasswd(self,passwdFile):
+    def fetch_passwd(self,netscaler_tool_config):
         try:
-            f = open(passwdFile)
+            f = open(netscaler_tool_config)
         except IOError:
             raise
 
-        # Reading contents of passwd file.
-        passwd = f.readline().strip('\n')
-
-        # Closing file handle
+        # Grab the passwd entry
+        passwd = yaml.load(f)['passwd']
         f.close()
 
         # Returning passwd
@@ -262,6 +282,10 @@ class Base(object):
         return output[object[0]][0]['server_service_binding']
 
 
+    def vserver(self):
+        pass
+
+
 class Show(Base):
     def __init__(self,args):
         super(Show, self).__init__(args)
@@ -360,8 +384,12 @@ class Show(Base):
                 except socket.herror, e:
                     raise RuntimeError(e)
         else:
-            output,attr = self.getLb()
-            printDict(output,attr)
+            output,attrs = self.getLb()
+            if attrs:
+                print_items_json(output,attr)
+            else:
+                print json.dumps(output)
+
 
 
     def csvservers(self):
@@ -549,14 +577,32 @@ class Enable(Base):
             try:
                 if self.args.debug:
                     print "\nAttempting to enable service %s" % (service)
-                output = self.client.modifyObject(properties)
+                self.client.modifyObject(properties)
             except RuntimeError, e:
                 raise
 
 
+    def vserver (self):
+        vserver = self.args.vserver
+
+        properties = {
+            'params': {'action': "enable"},
+            'vserver': {'name': str(vserver)},
+        }
+
+        try:
+            if self.args.debug:
+                print "\nAttempting to enable vserver %s" % (service)
+            self.client.modifyObject(properties)
+        except RuntimeError, e:
+            raise
+
+        super(Enable,self).vserver()
+
+
 class Disable(Base):
     def __init__(self,args):
-        super(Disable, self).__init__(args)
+        super(Disable,self).__init__(args)
         self.client = self.createClient()
 
     def server(self):
@@ -580,21 +626,43 @@ class Disable(Base):
             try:
                 if self.args.debug:
                     print "\nAttempting to disable service %s" % (service)
-                output = self.client.modifyObject(properties)
+                self.client.modifyObject(properties)
             except RuntimeError, e:
                 raise
 
 
-def main():
+    def vserver(self):
+        vserver = self.args.vserver
 
+        properties = {
+            'params': {'action': "disable"},
+            'vserver': {'name': str(vserver)},
+        }
+
+        try:
+            if self.args.debug:
+                print "\nAttempting to enable vserver %s" % (service)
+            self.client.modifyObject(properties)
+        except RuntimeError, e:
+            raise
+
+        super(Disable,self).vserver()
+
+
+class Bounce(Disable,Enable):
+    def vserver(self):
+        super(Bounce, self).vserver()
+
+
+def main():
     # Created parser.
     parser = argparse.ArgumentParser()
 
     # Global args
     parser.add_argument("host", metavar='NETSCALER', action=isPingableAction, help="IP or name of NetScaler.")
     parser.add_argument("--user", dest="user", help="NetScaler user account.", default="***REMOVED***")
-    parser.add_argument("--passwd", dest="passwd", help="Password for user. Default is to fetch from passwd file.")
-    parser.add_argument("--passwd-file", dest="passwdFile", help="Where password is stored for user. Default is /etc/tagops/netscalertool.conf.", default="/etc/tagops/netscalertool.conf")
+    parser.add_argument("--passwd", dest="passwd", help="Password for user. Default is to fetch from netscalertool.conf"
+                                                        " for user ***REMOVED***.")
     parser.add_argument("--nodns", action="store_true", dest="noDns", help="Won't try to resolve any netscaler objects.", default=False)
     parser.add_argument("--debug", action="store_true", dest="debug", help="Shows what's going on.", default=False)
     parser.add_argument("--dryrun", action="store_true", dest="dryrun", help="Dryrun.", default=False)
@@ -637,14 +705,24 @@ def main():
     parserEnable = subparser.add_parser('enable', help='sub-command for enable objects')
     subparserEnable = parserEnable.add_subparsers(dest='subparserName')
     parserEnableServer = subparserEnable.add_parser('server', help='Enable server. Will actually enable all servies bound to server')
-    parserEnableServer.add_argument('server', action=isNonProd, help='Server to enable')
+    parserEnableServer.add_argument('server', action=allowed_to_manage, help='Server to enable')
+    parserEnableVserver = subparserEnable.add_parser('vserver', help='Enable vserver')
+    parserEnableVserver.add_argument('vserver', action=allowed_to_manage, help='Vserver to enable')
 
     # Creating disable subparser.
     parserDisable = subparser.add_parser('disable', help='sub-command for disabling objects')
     subparserDisable = parserDisable.add_subparsers(dest='subparserName')
     parserDisableServer = subparserDisable.add_parser('server', help='Disable server')
-    parserDisableServer.add_argument('server', action=isNonProd, help='Server to disable. Will actually disable all services bound to server')
+    parserDisableServer.add_argument('server', action=allowed_to_manage, help='Server to disable. Will actually disable all services bound to server')
     parserDisableServer.add_argument('--delay', type=int, help='The time allowed (in seconds) for a graceful shutdown. Defaults to 3 seconds', default=3)
+    parserDisableVserver = subparserDisable.add_parser('vserver', help='Disable vserver')
+    parserDisableVserver.add_argument('vserver', action=allowed_to_manage, help='Vserver to disable')
+
+    # Creating disable subparser.
+    parserBounce = subparser.add_parser('bounce', help='sub-command for bouncing objects')
+    subparserBounce = parserBounce.add_subparsers(dest='subparserName')
+    parserBounceVserver = subparserBounce.add_parser('vserver', help='Bounce vserver')
+    parserBounceVserver.add_argument('vserver', action=allowed_to_manage, help='Vserver to bounce')
 
     # Getting arguments
     args = parser.parse_args()
@@ -695,6 +773,15 @@ def main():
             logger.critical(msg)
             retval = 1
     finally:
+        # Saving config if we run a enable or disable command
+        if args.topSubparserName in ["bounce","disable","enable"]:
+            try:
+                netscalerTool.client.saveConfig()
+            except RuntimeError, e:
+                print >> sys.stderr, "\n", e, "\n"
+                logger.critical(msg)
+                retval = 1
+
         # Logging out of NetScaler.
         try:
             netscalerTool.client.logout()

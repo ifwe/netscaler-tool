@@ -11,10 +11,6 @@ setup(
     author_email = "bglogower@tagged.com",
     description = "Nitro API tool for managing NetScalers.",
     license = "MIT",
-    install_requires=[
-        "httplib2",
-        "argparse",
-    ],
 
     entry_points = {
         'console_scripts': [

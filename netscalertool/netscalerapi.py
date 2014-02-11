@@ -16,6 +16,7 @@ except ImportError:
         print >> sys.stderr, e
         sys.exit(1)
 
+
 class Client:
     def __init__(self,host,user,passwd,debug):
         self.host = host
@@ -58,8 +59,6 @@ class Client:
 
         data = json.loads(content)
         self.sessionID = data["sessionid"]
-    
-        return True
 
 
     def logout(self):
@@ -74,7 +73,7 @@ class Client:
         http = httplib2.Http(disable_ssl_certificate_validation=True)
         response, content = http.request(url, 'POST', body=payloadEncoded, headers=headers)
 
-        # getting the errorcode to see if theere was a problem 
+        # getting the errorcode to see if there was a problem
         error = json.loads(content)['errorcode']
 
         if error != 0:
@@ -82,7 +81,31 @@ class Client:
             msg = "\nCouldn't logout: %s" % (data["message"])
             raise RuntimeError(msg)
 
-        return True
+
+    def saveConfig(self):
+        headers = {'Content-type': 'application/x-www-form-urlencoded', 'Cookie': 'sessionid='+self.sessionID}
+        url = "https://%s/nitro/v1/config/" % (self.host)
+
+        properties = {
+            'params': {"action": "save"},
+            "nsconfig":{}
+        }
+
+        # construct the payload with URL encoding
+        payload = {"object": properties}
+        payloadEncoded = urllib.urlencode(payload)
+
+        # create a HTTP object, and use it to submit a POST request
+        http = httplib2.Http(disable_ssl_certificate_validation=True)
+        response, content = http.request(url, 'POST', body=payloadEncoded, headers=headers)
+
+        # getting the errorcode to see if there was a problem
+        error = json.loads(content)['errorcode']
+
+        if error != 0:
+            data = json.loads(content)
+            msg = "\nCouldn't save config: %s" % (data["message"])
+            raise RuntimeError(msg)
 
 
     def getObject(self,object,*args):
@@ -142,14 +165,3 @@ class Client:
         if response.status != 200:
             msg = "Error while modifying %s" % (object[1])
             raise RuntimeError(msg)
-
-
-    def saveConfig(client):
-        command = "savensconfig"
-
-        try:
-            output = runCmd(client,command)
-        except RuntimeError, e:
-            raise
-
-        return True
