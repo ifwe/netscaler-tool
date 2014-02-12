@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='netscaler-tool',
-    version='1.12',
+    version='1.13',
     packages = find_packages(),
 
     author = "Brian Glogower",

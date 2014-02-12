@@ -148,21 +148,21 @@ class Base(object):
             self.passwd = self.fetch_passwd(netscaler_tool_config)
         except IOError, e:
             raise
-        self.debug = args.debug    
+        self.debug = args.debug
         self.dryrun = args.dryrun
-       
+
 
     def createClient(self):
-        # Creating a client instance 
+        # Creating a client instance
         try:
             self.client = netscalerapi.Client(self.host,self.user,self.passwd,self.debug)
         except RuntimeError, e:
-            msg = "Problem creating client instance.\n%s" % (e) 
+            msg = "Problem creating client instance.\n%s" % (e)
             raise RuntimeError(msg)
 
         # Login using client instance
         try:
-            self.client.login() 
+            self.client.login()
         except RuntimeError, e:
             raise RuntimeError(e)
 
@@ -265,7 +265,7 @@ class Base(object):
 
         for service in output[object[0]][0]['server_service_binding']:
             services.append(service['servicename'])
-            
+
         return services
 
 
@@ -281,7 +281,6 @@ class Base(object):
 
         return output[object[0]][0]['server_service_binding']
 
-
     def vserver(self):
         pass
 
@@ -290,12 +289,12 @@ class Show(Base):
     def __init__(self,args):
         super(Show, self).__init__(args)
         self.client = self.createClient()
-    
+
 
     def server(self):
         server = self.args.server
 
-        if self.args.services: 
+        if self.args.services:
             try:
                 list = self.getServerBindingServiceDetails(server)
             except RuntimeError, e:
@@ -427,7 +426,7 @@ class Show(Base):
 
     def runningconfig(self):
         print self.getRunningConfig()
-        
+
 
     def getServiceStats(self,service,*args):
         mode = 'stats'
@@ -451,7 +450,7 @@ class Show(Base):
 
         return DictOfServiceStats
 
-    
+
     def sslcerts(self):
         object = ["sslcertkey"]
         try:
@@ -493,6 +492,17 @@ class Show(Base):
 
         print surgeCountTotal
 
+    def system(self):
+        mode = 'stats'
+        object = ["system" ]
+        DictOfServiceStats = {}
+
+        try:
+            output = self.client.getObject(object,mode)
+        except RuntimeError, e:
+            raise
+        print json.dumps(output['system'])
+
 
 class Compare(Base):
     def __init__(self,args):
@@ -507,13 +517,13 @@ class Compare(Base):
                 newConfig.append(line)
 
         return newConfig
-   
+
 
     def configs(self):
         # Regex that will be used to ignore lines we know are only in saved or
         # running configs, which will always show up in a diff.
         ignoreREs = "^# Last modified|^set appfw|^set lb monitor https? HTTP"
-        
+
         # Getting saved and running configs. Splitting on newline
         # to make it easier to compare the two.
         saved = self.getSavedConfig().split('\n')
@@ -553,7 +563,7 @@ class Compare(Base):
         diff = set(listOfServices1) ^ set(listOfServices2)
         if diff:
             msg = "The following services are either bound to %s or %s but not both:\n%s" % (vserver1,vserver2,'\n'.join(sorted(list(diff))))
-            raise RuntimeError(msg) 
+            raise RuntimeError(msg)
 
 
 class Enable(Base):
@@ -667,7 +677,7 @@ def main():
     parser.add_argument("--debug", action="store_true", dest="debug", help="Shows what's going on.", default=False)
     parser.add_argument("--dryrun", action="store_true", dest="dryrun", help="Dryrun.", default=False)
 
-    # Creating subparser. 
+    # Creating subparser.
     subparser = parser.add_subparsers(dest='topSubparserName')
 
     # Creating show subparser.
@@ -675,11 +685,11 @@ def main():
     subparserShow = parserShow.add_subparsers(dest='subparserName')
     parserShowLbVservers = subparserShow.add_parser('lb-vservers', help='Shows all lb vservers')
     parserShowLbVserver = subparserShow.add_parser('lb-vserver', help='Shows stat(s) of a specific lb vserver')
-    parserShowLbVserver.add_argument('vserver', help='Shows stats for which vserver') 
+    parserShowLbVserver.add_argument('vserver', help='Shows stats for which vserver')
     parserShowLbVserverGroup = parserShowLbVserver.add_mutually_exclusive_group()
-    parserShowLbVserverGroup.add_argument('--attr', dest='attr', nargs='*', help='Shows only the specified attribute(s)') 
-    parserShowLbVserverGroup.add_argument('--services', action='store_true', help='Shows services bound to specified lb vserver') 
-    parserShowLbVserverGroup.add_argument('--servers', action='store_true', help='Shows servers bound to specified lb vserver') 
+    parserShowLbVserverGroup.add_argument('--attr', dest='attr', nargs='*', help='Shows only the specified attribute(s)')
+    parserShowLbVserverGroup.add_argument('--services', action='store_true', help='Shows services bound to specified lb vserver')
+    parserShowLbVserverGroup.add_argument('--servers', action='store_true', help='Shows servers bound to specified lb vserver')
     parserShowCsVservers = subparserShow.add_parser('cs-vservers', help='Shows all cs vservers')
     parserShowServer = subparserShow.add_parser('server', help='Shows server info')
     parserShowServer.add_argument('server', help='Shows server details')
@@ -692,6 +702,7 @@ def main():
     parserShowSurgeTotal.add_argument('vserver', help='Shows surge total for which lb vserver')
     parserShowSavedConfig = subparserShow.add_parser('saved-config', help='Shows saved ns config')
     parserShowRunningConfig = subparserShow.add_parser('running-config', help='Shows running ns config')
+    parserShowSystem = subparserShow.add_parser('system', help='Shows system counters')
 
     # Creating compare subparser.
     parserCmp = subparser.add_parser('compare', help='sub-command for comparing objects')
@@ -786,7 +797,7 @@ def main():
         try:
             netscalerTool.client.logout()
         except RuntimeError, e:
-            msg = "%s, %s" % (user,e) 
+            msg = "%s, %s" % (user,e)
             print >> sys.stderr, msg
             logger.warn(msg)
             retval = 1
