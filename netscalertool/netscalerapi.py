@@ -10,7 +10,7 @@ import socket
 try:
     import json
 except ImportError:
-    try: 
+    try:
         import simplejson as json
     except ImportError, e:
         print >> sys.stderr, e
@@ -18,7 +18,7 @@ except ImportError:
 
 
 class Client:
-    def __init__(self,host,user,passwd,debug):
+    def __init__(self, host, user, passwd, debug):
         self.host = host
         self.user = user
         self.passwd = passwd
@@ -27,22 +27,28 @@ class Client:
         #if self.debug:
         #    httplib2.debuglevel=4
 
-
     def login(self):
+        """
+        For debug purposes, print out the headers and the content of the
+        response
+        """
+
         # set the headers and the base URL
         headers = {'Content-type': 'application/x-www-form-urlencoded'}
         url = "https://%s/nitro/v1/config/" % (self.host)
 
         # construct the payload with URL encoding
-        payload = {"object":{"login":{"username":self.user,"password":self.passwd}}}
+        payload = {"object": {"login": {"username": self.user, "password":
+                   self.passwd}}}
         payloadEncoded = urllib.urlencode(payload)
 
         # create a HTTP object, and use it to submit a POST request
         http = httplib2.Http(disable_ssl_certificate_validation=True)
         try:
-            response, content = http.request(url, 'POST', body=payloadEncoded, headers=headers)
-        except socket.error, e: 
-            msg = "Problem connecting to netscaler %s:\n%s" % (self.host,e)
+            response, content = http.request(url, 'POST', body=payloadEncoded,
+                                             headers=headers)
+        except socket.error, e:
+            msg = "Problem connecting to netscaler %s:\n%s" % (self.host, e)
             raise RuntimeError(msg)
 
         data = json.loads(content)
@@ -52,7 +58,6 @@ class Client:
             raise RuntimeError(content)
 
         if self.debug:
-            # for debug purposes, print out the headers and the content of the response
             print "Nitro API URL: ", url
             print "\n", json.dumps(response)
             print "\n", json.dumps(content)
@@ -60,18 +65,23 @@ class Client:
         data = json.loads(content)
         self.sessionID = data["sessionid"]
 
-
     def logout(self):
-        headers = {'Content-type': 'application/x-www-form-urlencoded', 'Cookie': 'sessionid='+self.sessionID}
+        """
+        Logout of the netscaler
+        """
+
+        headers = {'Content-type': 'application/x-www-form-urlencoded',
+                   'Cookie': 'sessionid='+self.sessionID}
         url = "https://%s/nitro/v1/config/" % (self.host)
 
         # construct the payload with URL encoding
-        payload = {"object":{"logout":{}}}
+        payload = {"object": {"logout": {}}}
         payloadEncoded = urllib.urlencode(payload)
 
         # create a HTTP object, and use it to submit a POST request
         http = httplib2.Http(disable_ssl_certificate_validation=True)
-        response, content = http.request(url, 'POST', body=payloadEncoded, headers=headers)
+        response, content = http.request(url, 'POST', body=payloadEncoded,
+                                         headers=headers)
 
         # getting the errorcode to see if there was a problem
         error = json.loads(content)['errorcode']
@@ -81,14 +91,18 @@ class Client:
             msg = "\nCouldn't logout: %s" % (data["message"])
             raise RuntimeError(msg)
 
+    def save_config(self):
+        """
+        Save netscaler config
+        """
 
-    def saveConfig(self):
-        headers = {'Content-type': 'application/x-www-form-urlencoded', 'Cookie': 'sessionid='+self.sessionID}
+        headers = {'Content-type': 'application/x-www-form-urlencoded',
+                   'Cookie': 'sessionid='+self.sessionID}
         url = "https://%s/nitro/v1/config/" % (self.host)
 
         properties = {
             'params': {"action": "save"},
-            "nsconfig":{}
+            "nsconfig": {}
         }
 
         # construct the payload with URL encoding
@@ -97,7 +111,8 @@ class Client:
 
         # create a HTTP object, and use it to submit a POST request
         http = httplib2.Http(disable_ssl_certificate_validation=True)
-        response, content = http.request(url, 'POST', body=payloadEncoded, headers=headers)
+        response, content = http.request(url, 'POST', body=payloadEncoded,
+                                         headers=headers)
 
         # getting the errorcode to see if there was a problem
         error = json.loads(content)['errorcode']
@@ -107,16 +122,19 @@ class Client:
             msg = "\nCouldn't save config: %s" % (data["message"])
             raise RuntimeError(msg)
 
+    def get_object(self, object, *args):
+        """
+        If we get stat in our optional args list, that means we need to change
+        the url to handle fetching stat objects
+        """
+        headers = {'Content-type': 'application/x-www-form-urlencoded',
+                   'Cookie': 'sessionid='+self.sessionID}
 
-    def getObject(self,object,*args):
-        headers = {'Content-type': 'application/x-www-form-urlencoded', 'Cookie': 'sessionid='+self.sessionID}
-
-        # if we get stat in our optional args list, that means we need to change
-        # the url to handle fetching stat objects
         if 'stats' in args:
-            url = "https://%s/nitro/v1/stat/%s" % (self.host,'/'.join(object))
+            url = "https://%s/nitro/v1/stat/%s" % (self.host, '/'.join(object))
         else:
-            url = "https://%s/nitro/v1/config/%s" % (self.host,'/'.join(object))
+            url = "https://%s/nitro/v1/config/%s" % (self.host,
+                                                     '/'.join(object))
 
         if self.debug:
             print "URL: ", url
@@ -137,16 +155,16 @@ class Client:
 
         return data
 
-
-    def modifyObject(self,properties):
-        headers = {'Content-type': 'application/x-www-form-urlencoded', 'Cookie': 'sessionid='+self.sessionID}
+    def modify_object(self, properties):
+        headers = {'Content-type': 'application/x-www-form-urlencoded',
+                   'Cookie': 'sessionid='+self.sessionID}
 
         url = "https://%s/nitro/v1/config" % (self.host)
         if self.debug:
             print "URL: ", url
 
         # construct the payload with URL encoding
-        payload = {"object" : properties}
+        payload = {"object": properties}
         payloadEncoded = urllib.urlencode(payload)
         if self.debug:
             print "Payload: ", payload
@@ -154,13 +172,12 @@ class Client:
 
         # create a HTTP object, and use it to submit a PUT request
         http = httplib2.Http(disable_ssl_certificate_validation=True)
-        response, content = http.request(url, 'POST', body=payloadEncoded, headers=headers)
+        response, content = http.request(url, 'POST', body=payloadEncoded,
+                                         headers=headers)
 
         if self.debug:
             print "\nResponse: ", response
             print "\nContent: ", content
-        data = json.loads(content)
-        errorcode = data["errorcode"]
 
         if response.status != 200:
             msg = "Error while modifying %s" % (object[1])
