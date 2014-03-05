@@ -8,7 +8,6 @@ import re
 import socket
 import subprocess
 import sys
-import tagops
 import yaml
 
 
@@ -25,11 +24,14 @@ except ImportError:
         print >> sys.stderr, e
         sys.exit(1)
 
+# NetScaler tool configuration file
+netscaler_tool_config = "/etc/netscalertool.conf"
+
+# Grabbing the user that is running this script for logging purposes
 if os.getenv('SUDO_USER'):
     user = os.getenv('SUDO_USER')
 else:
     user = os.getenv('USER')
-
 
 # Setting up logging
 logFile = '/var/log/netscaler-tool/netscaler-tool.log'
@@ -38,7 +40,7 @@ try:
 except (socket.herror, socket.gaierror), e:
     localHost = 'localhost'
 logger = logging.getLogger(local_host)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 try:
     ch = logging.FileHandler(logFile)
@@ -46,7 +48,7 @@ except IOError, e:
     print >> sys.stderr, e
     sys.exit(1)
 
-ch.setLevel(logging.INFO)
+ch.setLevel(logging.DEBUG)
 formatter = logging.Formatter(
     '%(asctime)s %(name)s - %(levelname)s - %(message)s',
     datefmt='%b %d %H:%M:%S'
@@ -54,12 +56,10 @@ formatter = logging.Formatter(
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-netscaler_tool_config = "/etc/tagops/netscalertool.conf"
-
 
 def print_list(list):
     """
-    Used for nicely printing a list
+    Used for printing a list
     """
     for entry in list:
         print entry
@@ -71,15 +71,19 @@ def print_items_json(dict, *args):
     """
     Used for printing certain items of a dictionary in json
     """
+
     new_dict = {}
     # Testing to see if any attrs were passed
     # in and if so only print those key/values.
-    if args[0]:
-        for key in sorted(args[0]):
+    try:
+        for key in args[0]:
             try:
                 new_dict[key] = dict[key]
-            except KeyError:
-                raise
+            except KeyError, e:
+                msg = "%s is not a valid attr" % (e,)
+                raise KeyError(msg)
+    except KeyError:
+        raise
 
     print json.dumps(new_dict)
 
@@ -88,8 +92,7 @@ def print_items_json(dict, *args):
 
 class is_pingable_action(argparse.Action):
     """
-    Used by argparse to see if the host specified is alive (pingable). Maybe we
-    can have it check the DB to see if the host is a netscaler as well.
+    Used by argparse to see if the NetScaler specified is alive (pingable)
     """
 
     def __call__(self, parser, namespace, values, option_string=None):
@@ -121,31 +124,36 @@ class allowed_to_manage(argparse.Action):
         ns_config = yaml.load(f)
         f.close()
 
-        # Checking if specified server is allowed to be managed
         if namespace.subparserName == "server":
-            server_list = []
-            sql = "SELECT hostname FROM hosts WHERE environment = " \
-                  "'production' ORDER BY hostname"
-            try:
-                db = tagops.tagOpsReader()
-                db.connect()
-                output = db.execute(sql)
-                db.close()
-            except RuntimeError, e:
-                print >> sys.stderr, e
-                return sys.exit(1)
+            # Checking if specified server is allowed to be managed
+            if ns_config["external_nodes"]:
+                try:
+                    cmd = ns_config["external_nodes"]
+                    msg = "Running \"%s\" to get a list of manageable " \
+                          "servers" % (cmd,)
+                    logger.info(msg)
+                    manageable_servers = subprocess.check_output(
+                        cmd.split()
+                    )
+                except subprocess.CalledProcessError, e:
+                    print >> sys.stderr, e
+                    logger.critical(e)
+                    sys.exit(1)
 
-            for server in output:
-                server_list.append(server[0])
-
-            if values in server_list:
-                msg = "%s is a production server. You can not " \
-                      "enable/disable a production server at this time." \
-                      % (values)
-                print >> sys.stderr, msg
+                if values not in manageable_servers.split('\n'):
+                    msg = "%s is not a manageable server. If you would " \
+                          "like to change this, please update " \
+                          "external_nodes in %s" % (values,
+                                                    netscaler_tool_config)
+                    print >> sys.stderr, msg
+                    logger.error(msg)
+                    sys.exit(1)
+            else:
+                msg = "external_nodes not set in %s. All servers are " \
+                      "allowed to be managed" % (netscaler_tool_config,)
                 logger.info(msg)
-                return sys.exit(1)
-        # Checking if specified vserver allowed to be managed
+
+        # Checking if specified vserver is allowed to be managed
         elif namespace.subparserName == "vserver":
             if values not in ns_config["manage_vservers"]:
                 msg = "%s is a vserver that is not allowed to be managed. " \
@@ -153,7 +161,7 @@ class allowed_to_manage(argparse.Action):
                       % (values, netscaler_tool_config)
                 print >> sys.stderr, msg
                 logger.info(msg)
-                return sys.exit(1)
+                sys.exit(1)
 
         setattr(namespace, self.dest, values)
 
@@ -162,13 +170,24 @@ class Base(object):
     def __init__(self, args):
         self.args = args
         self.host = args.host
+        self.passwd = args.passwd
         self.user = args.user
-        try:
-            self.passwd = self.fetch_passwd(netscaler_tool_config)
-        except IOError:
-            raise
         self.debug = args.debug
         self.dryrun = args.dryrun
+
+        try:
+            self.config = self.fetch_config(netscaler_tool_config)
+        except IOError:
+            raise
+
+        # If the operator doesn't specify a user, let's grab it from the config
+        if not self.user:
+            self.user = self.config['user']
+
+        # If the operator doesn't specify a passwd, let's grab it from the
+        # config
+        if not self.passwd:
+            self.passwd = self.config['passwd']
 
     def create_client(self):
         # Creating a client instance
@@ -189,18 +208,17 @@ class Base(object):
         return self.client
 
     # Grabs passwd from passwd file.
-    def fetch_passwd(self, netscaler_tool_config):
+    def fetch_config(self, netscaler_tool_config):
         try:
             f = open(netscaler_tool_config)
         except IOError:
             raise
 
-        # Grab the passwd entry
-        passwd = yaml.load(f)['passwd']
+        config = yaml.load(f)
         f.close()
 
         # Returning passwd
-        return passwd
+        return config
 
     def get_bound_services(self, vserver):
         object = ["lbvserver_binding", vserver]
@@ -659,7 +677,7 @@ class Disable(Base):
 
         try:
             if self.args.debug:
-                print "\nAttempting to enable vserver %s" % (vserver)
+                print "\nAttempting to disable vserver %s" % (vserver)
             self.client.modify_object(properties)
         except RuntimeError:
             raise
@@ -681,10 +699,7 @@ def main():
         "host", metavar='NETSCALER', action=is_pingable_action, help="IP or \
         name of NetScaler."
     )
-    parser.add_argument(
-        "--user", dest="user", help="NetScaler user account.",
-        default="***REMOVED***"
-    )
+    parser.add_argument("--user", dest="user", help="NetScaler user account.")
     parser.add_argument(
         "--passwd", dest="passwd", help="Password for user. Default is to \
         fetch from netscalertool.conf for user ***REMOVED***."
@@ -712,12 +727,12 @@ def main():
     subparserShow = parserShow.add_subparsers(dest='subparserName')
     subparserShow.add_parser('lb-vservers', help='Shows all lb vservers')
     parserShowLbVserver = subparserShow.add_parser(
-        'lb-vserver', help='Shows stat(s) of a specific lb vserver'
+        'lb-vserver', help='Shows stat(s) of a specified lb vserver'
     )
     parserShowLbVserver.add_argument(
-        'vserver', help='Shows stats for which vserver'
+        'vserver', help='Shows stats for specified vserver'
     )
-    parserShowLbVserverGroup = parserShowLbVserver \
+    parserShowLbVserverGroup = parserShowLbVserver\
         .add_mutually_exclusive_group()
     parserShowLbVserverGroup.add_argument(
         '--attr', dest='attr', nargs='*', help='Shows only the specified \
@@ -841,7 +856,7 @@ def main():
                 continue
             else:
                 print "\t%s: %s" % (arg, getattr(args, arg))
-        print "\n"
+        print
 
     # Getting method, based on subparser called from argparse.
     method = args.subparserName.replace('-', '')
@@ -863,8 +878,6 @@ def main():
         logger.critical(sys.exc_info()[1])
         return 1
 
-    # Creating instance and calling one of its method try-try-finally is due
-    # to a python 2.4 bug
     try:
         try:
             getattr(netscaler_tool, method)()
@@ -872,7 +885,7 @@ def main():
             logger.info(msg)
         except (AttributeError, RuntimeError, KeyError, IOError):
             msg = "%s, %s" % (user, sys.exc_info()[1])
-            print >> sys.stderr, "\n", msg, "\n"
+            print >> sys.stderr, msg
             logger.critical(msg)
             retval = 1
     finally:
@@ -880,14 +893,19 @@ def main():
         if args.topSubparserName in ["bounce", "disable", "enable"]:
             try:
                 netscaler_tool.client.save_config()
+                logger.info("Saving NetScaler config")
             except RuntimeError, e:
-                print >> sys.stderr, "\n", e, "\n"
-                logger.critical(msg)
+                print >> sys.stderr, e
+                logger.critical(e)
                 retval = 1
 
         # Logging out of NetScaler.
         try:
             netscaler_tool.client.logout()
+            if debug:
+                msg = "Logging out of NetScaler %s" % (args.host,)
+                logger.debug(msg)
+                print "\n", msg
         except RuntimeError, e:
             msg = "%s, %s" % (user, e)
             print >> sys.stderr, msg
