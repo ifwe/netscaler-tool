@@ -1,5 +1,3 @@
-MySQL-python
 PyYAML
 argparse
 httplib2
-tagops
