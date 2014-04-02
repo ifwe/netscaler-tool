@@ -702,7 +702,7 @@ def main():
     parser.add_argument("--user", dest="user", help="NetScaler user account.")
     parser.add_argument(
         "--passwd", dest="passwd", help="Password for user. Default is to \
-        fetch from netscalertool.conf for user ***REMOVED***."
+        fetch from netscalertool.conf."
     )
     parser.add_argument(
         "--nodns", action="store_true", dest="noDns", help="Won't try to \
