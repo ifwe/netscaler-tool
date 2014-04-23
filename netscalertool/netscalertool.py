@@ -318,6 +318,21 @@ class Base(object):
     def vserver(self):
         pass
 
+class Stat(Base):
+    def __init__(self, args):
+        super(Stat, self).__init__(args)
+        self.client = self.create_client()
+
+    def lbvservers(self):
+        stat = self.args.stat
+        object = ["lbvserver"]
+        try:
+            output = self.client.get_object(object,"stats")
+        except RunTimeError, e:
+            msg = "Could not get stat: %s on %s" % (e, self.host)
+            raise RuntimeError(msg)
+        for entry in output['lbvserver']:
+            print json.dumps({entry['name']: entry[stat]})
 
 class Show(Base):
     def __init__(self, args):
@@ -772,6 +787,18 @@ def main():
     subparserShow.add_parser('saved-config', help='Shows saved ns config')
     subparserShow.add_parser('running-config', help='Shows running ns config')
     subparserShow.add_parser('system', help='Shows system counters')
+
+    # Creating stat subparser
+    parserStat = subparser.add_parser(
+        'stat', help='sub-command for showing object stats'
+    )
+    subparserStat = parserStat.add_subparsers(dest='subparserName')
+    parserStatLbVservers = subparserStat.add_parser(
+        'lb-vservers', help='Shows stats of all lbvservers'
+    )
+    parserStatLbVservers.add_argument(
+        'stat', help='Select specific stat to display'
+    )
 
     # Creating compare subparser.
     parserCmp = subparser.add_parser(
