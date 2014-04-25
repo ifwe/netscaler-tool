@@ -2,13 +2,15 @@
 
 import argparse
 import logging
-import netscalerapi
 import os
 import re
 import socket
 import subprocess
 import sys
 import yaml
+
+import netscalerapi
+import utils
 
 
 # simplejson is used on CentOS 5, while
