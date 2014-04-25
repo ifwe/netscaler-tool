@@ -26,147 +26,6 @@ except ImportError:
         print >> sys.stderr, e
         sys.exit(1)
 
-# NetScaler tool configuration file
-netscaler_tool_config = "/etc/netscalertool.conf"
-
-# Grabbing the user that is running this script for logging purposes
-if os.getenv('SUDO_USER'):
-    user = os.getenv('SUDO_USER')
-else:
-    user = os.getenv('USER')
-
-# Setting up logging
-logFile = '/var/log/netscaler-tool/netscaler-tool.log'
-try:
-    local_host = socket.gethostbyaddr(socket.gethostname())[1][0]
-except (socket.herror, socket.gaierror), e:
-    localHost = 'localhost'
-logger = logging.getLogger(local_host)
-logger.setLevel(logging.DEBUG)
-
-try:
-    ch = logging.FileHandler(logFile)
-except IOError, e:
-    print >> sys.stderr, e
-    sys.exit(1)
-
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter(
-    '%(asctime)s %(name)s - %(levelname)s - %(message)s',
-    datefmt='%b %d %H:%M:%S'
-)
-ch.setFormatter(formatter)
-logger.addHandler(ch)
-
-
-def print_list(list):
-    """
-    Used for printing a list
-    """
-    for entry in list:
-        print entry
-
-    return 0
-
-
-def print_items_json(dict, *args):
-    """
-    Used for printing certain items of a dictionary in json
-    """
-
-    new_dict = {}
-    # Testing to see if any attrs were passed
-    # in and if so only print those key/values.
-    try:
-        for key in args[0]:
-            try:
-                new_dict[key] = dict[key]
-            except KeyError, e:
-                msg = "%s is not a valid attr" % (e,)
-                raise KeyError(msg)
-    except KeyError:
-        raise
-
-    print json.dumps(new_dict)
-
-    return 0
-
-
-class is_pingable_action(argparse.Action):
-    """
-    Used by argparse to see if the NetScaler specified is alive (pingable)
-    """
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        pingCmd = "ping -c 1 -W 2 %s" % (values)
-        process = subprocess.call(
-            pingCmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-
-        if process != 0:
-            msg = "%s is not alive." % (values)
-            print >> sys.stderr, msg
-            return sys.exit(1)
-
-        setattr(namespace, self.dest, values)
-
-
-class allowed_to_manage(argparse.Action):
-    """
-    Checks if object is allowed to be managed
-    """
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        try:
-            f = open(netscaler_tool_config, 'r')
-        except IOError, e:
-            print >> sys.stderr, e
-            sys.exit(1)
-
-        ns_config = yaml.load(f)
-        f.close()
-
-        if namespace.subparserName == "server":
-            # Checking if specified server is allowed to be managed
-            if ns_config["external_nodes"]:
-                try:
-                    cmd = ns_config["external_nodes"]
-                    msg = "Running \"%s\" to get a list of manageable " \
-                          "servers" % (cmd,)
-                    logger.info(msg)
-                    manageable_servers = subprocess.check_output(
-                        cmd.split()
-                    )
-                except subprocess.CalledProcessError, e:
-                    print >> sys.stderr, e
-                    logger.critical(e)
-                    sys.exit(1)
-
-                if values not in manageable_servers.split('\n'):
-                    msg = "%s is not a manageable server. If you would " \
-                          "like to change this, please update " \
-                          "external_nodes in %s" % (values,
-                                                    netscaler_tool_config)
-                    print >> sys.stderr, msg
-                    logger.error(msg)
-                    sys.exit(1)
-            else:
-                msg = "external_nodes not set in %s. All servers are " \
-                      "allowed to be managed" % (netscaler_tool_config,)
-                logger.info(msg)
-
-        # Checking if specified vserver is allowed to be managed
-        elif namespace.subparserName == "vserver":
-            if values not in ns_config["manage_vservers"]:
-                msg = "%s is a vserver that is not allowed to be managed. " \
-                      "If you would like to change this, please update %s." \
-                      % (values, netscaler_tool_config)
-                print >> sys.stderr, msg
-                logger.info(msg)
-                sys.exit(1)
-
-        setattr(namespace, self.dest, values)
-
 
 class Base(object):
     def __init__(self, args):
@@ -320,6 +179,7 @@ class Base(object):
     def vserver(self):
         pass
 
+
 class Stat(Base):
     def __init__(self, args):
         super(Stat, self).__init__(args)
@@ -335,6 +195,7 @@ class Stat(Base):
             raise RuntimeError(msg)
         for entry in output['lbvserver']:
             print json.dumps({entry['name']: entry[stat]})
+
 
 class Show(Base):
     def __init__(self, args):
@@ -379,7 +240,7 @@ class Show(Base):
         for server in output['server']:
             listOfServers.append(server['name'])
 
-        print_list(sorted(listOfServers))
+        utils.print_list(sorted(listOfServers))
 
     def services(self):
         object = ["service"]
@@ -395,7 +256,7 @@ class Show(Base):
         for service in output['service']:
             listOfServices.append(service['name'])
 
-        print_list(sorted(listOfServices))
+        utils.print_list(sorted(listOfServices))
 
     def lbvservers(self):
         object = ["lbvserver"]
@@ -411,7 +272,7 @@ class Show(Base):
         for vserver in output['lbvserver']:
             listOfLbVservers.append(vserver['name'])
 
-        print_list(sorted(listOfLbVservers))
+        utils.print_list(sorted(listOfLbVservers))
 
     def lbvserver(self):
         vserver = self.args.vserver
@@ -436,7 +297,7 @@ class Show(Base):
         else:
             output, attrs = self.get_lb()
             if attrs:
-                print_items_json(output, attr)
+                utils.print_items_json(output, attr)
             else:
                 print json.dumps(output)
 
@@ -454,7 +315,7 @@ class Show(Base):
         for vserver in output['csvserver']:
             list_of_cs_vservers.append(vserver['name'])
 
-        print_list(sorted(list_of_cs_vservers))
+        utils.print_list(sorted(list_of_cs_vservers))
 
     def primarynode(self):
         object = ["hanode"]
@@ -708,12 +569,118 @@ class Bounce(Disable, Enable):
 
 
 def main():
-    # Created parser.
+    class IsPingableAction(argparse.Action):
+        """
+        Used by argparse to check if the NetScaler specified is pingable
+        """
+
+        def __call__(self, parser, namespace, values, option_string=None):
+            pingCmd = "ping -c 1 -W 2 %s" % (values)
+            process = subprocess.call(
+                pingCmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+
+            if process != 0:
+                msg = "%s is not alive." % (values)
+                print >> sys.stderr, msg
+                return sys.exit(1)
+
+            setattr(namespace, self.dest, values)
+
+
+    class AllowedToManage(argparse.Action):
+        """
+        Used by argparse to checks if object is allowed to be managed
+        """
+
+        def __call__(self, parser, namespace, values, option_string=None):
+            netscaler_tool_config = namespace.netscaler_tool_config
+
+            try:
+                f = open(netscaler_tool_config, 'r')
+            except IOError, e:
+                print >> sys.stderr, e
+                sys.exit(1)
+
+            ns_config = yaml.load(f)
+            f.close()
+
+            if namespace.subparserName == "server":
+                # Checking if specified server is allowed to be managed
+                if ns_config["external_nodes"]:
+                    try:
+                        cmd = ns_config["external_nodes"]
+                        msg = "Running \"%s\" to get a list of manageable " \
+                              "servers" % (cmd,)
+                        logger.info(msg)
+                        manageable_servers = subprocess.check_output(
+                            cmd.split()
+                        )
+                    except subprocess.CalledProcessError, e:
+                        print >> sys.stderr, e
+                        logger.critical(e)
+                        sys.exit(1)
+
+                    if values not in manageable_servers.split('\n'):
+                        msg = "%s is not a manageable server. If you would " \
+                              "like to change this, please update " \
+                              "external_nodes in %s" % (values,
+                                                        netscaler_tool_config)
+                        print >> sys.stderr, msg
+                        logger.error(msg)
+                        sys.exit(1)
+                else:
+                    msg = "external_nodes not set in %s. All servers are " \
+                          "allowed to be managed" % (netscaler_tool_config,)
+                    logger.info(msg)
+
+            # Checking if specified vserver is allowed to be managed
+            elif namespace.subparserName == "vserver":
+                if values not in ns_config["manage_vservers"]:
+                    msg = "%s is a vserver that is not allowed to be " \
+                          "managed. If you would like to change this, " \
+                          "please update %s." % (values, netscaler_tool_config)
+                    print >> sys.stderr, msg
+                    logger.info(msg)
+                    sys.exit(1)
+
+            setattr(namespace, self.dest, values)
+
+    # Grabbing the user that is running this script for logging purposes
+    if os.getenv('SUDO_USER'):
+        user = os.getenv('SUDO_USER')
+    else:
+        user = os.getenv('USER')
+
+    # Setting up logging
+    logFile = '/var/log/netscaler-tool/netscaler-tool.log'
+    try:
+        local_host = socket.gethostbyaddr(socket.gethostname())[1][0]
+    except (socket.herror, socket.gaierror), e:
+        localHost = 'localhost'
+    logger = logging.getLogger(local_host)
+    logger.setLevel(logging.DEBUG)
+
+    try:
+        ch = logging.FileHandler(logFile)
+    except IOError, e:
+        print >> sys.stderr, e
+        sys.exit(1)
+
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(
+        '%(asctime)s %(name)s - %(levelname)s - %(message)s',
+        datefmt='%b %d %H:%M:%S'
+    )
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    # Create parser
     parser = argparse.ArgumentParser()
 
     # Global args
     parser.add_argument(
-        "host", metavar='NETSCALER', action=is_pingable_action, help="IP or \
+        "host", metavar='NETSCALER', action=IsPingableAction, help="IP or \
         name of NetScaler."
     )
     parser.add_argument("--user", dest="user", help="NetScaler user account.")
@@ -826,13 +793,13 @@ def main():
         to server'
     )
     parserEnableServer.add_argument(
-        'server', action=allowed_to_manage, help='Server to enable'
+        'server', action=AllowedToManage, help='Server to enable'
     )
     parserEnableVserver = subparserEnable.add_parser(
         'vserver', help='Enable vserver'
     )
     parserEnableVserver.add_argument(
-        'vserver', action=allowed_to_manage, help='Vserver to enable'
+        'vserver', action=AllowedToManage, help='Vserver to enable'
     )
 
     # Creating disable subparser.
@@ -844,7 +811,7 @@ def main():
         'server', help='Disable server'
     )
     parserDisableServer.add_argument(
-        'server', action=allowed_to_manage, help='Server to disable. Will \
+        'server', action=AllowedToManage, help='Server to disable. Will \
         actually disable all services bound to server'
     )
     parserDisableServer.add_argument(
@@ -855,7 +822,7 @@ def main():
         'vserver', help='Disable vserver'
     )
     parserDisableVserver.add_argument(
-        'vserver', action=allowed_to_manage, help='Vserver to disable'
+        'vserver', action=AllowedToManage, help='Vserver to disable'
     )
 
     # Creating disable subparser.
@@ -867,7 +834,7 @@ def main():
         'vserver', help='Bounce vserver'
     )
     parserBounceVserver.add_argument(
-        'vserver', action=allowed_to_manage, help='Vserver to bounce'
+        'vserver', action=AllowedToManage, help='Vserver to bounce'
     )
 
     # Getting arguments
