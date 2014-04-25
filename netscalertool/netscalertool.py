@@ -37,7 +37,7 @@ class Base(object):
         self.user = args.user
 
         try:
-            self.config = self.fetch_config(netscaler_tool_config)
+            self.config = self.fetch_config(args.netscaler_tool_config)
         except IOError:
             raise
 
@@ -678,7 +678,9 @@ def main():
     # Create parser
     parser = argparse.ArgumentParser()
 
-    # Global args
+    # Set path to NetScaler tool configuration file
+    parser.set_defaults(netscaler_tool_config="/etc/netscalertool.conf")
+
     parser.add_argument(
         "host", metavar='NETSCALER', action=IsPingableAction, help="IP or \
         name of NetScaler."
