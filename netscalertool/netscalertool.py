@@ -189,7 +189,7 @@ class Stat(Base):
         stat = self.args.stat
         object = ["lbvserver"]
         try:
-            output = self.client.get_object(object,"stats")
+            output = self.client.get_object(object, "stats")
         except RunTimeError, e:
             msg = "Could not get stat: %s on %s" % (e, self.host)
             raise RuntimeError(msg)
@@ -718,7 +718,7 @@ def main():
     parserShowLbVserver.add_argument(
         'vserver', help='Shows stats for specified vserver'
     )
-    parserShowLbVserverGroup = parserShowLbVserver\
+    parserShowLbVserverGroup = parserShowLbVserver \
         .add_mutually_exclusive_group()
     parserShowLbVserverGroup.add_argument(
         '--attr', dest='attr', nargs='*', help='Shows only the specified \
@@ -791,8 +791,8 @@ def main():
     )
     subparserEnable = parserEnable.add_subparsers(dest='subparserName')
     parserEnableServer = subparserEnable.add_parser(
-        'server', help='Enable server. Will actually enable all servies bound \
-        to server'
+        'server',
+        help='Enable server. Will actually enable all services bound to server'
     )
     parserEnableServer.add_argument(
         'server', action=AllowedToManage, help='Server to enable'
@@ -843,6 +843,7 @@ def main():
     args = parser.parse_args()
     debug = args.debug
 
+    # Set exit return value to 0
     retval = 0
 
     # Showing user flags and their values
