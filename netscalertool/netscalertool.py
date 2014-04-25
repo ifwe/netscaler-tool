@@ -30,11 +30,11 @@ except ImportError:
 class Base(object):
     def __init__(self, args):
         self.args = args
+        self.debug = args.debug
+        self.dryrun = args.dryrun
         self.host = args.host
         self.passwd = args.passwd
         self.user = args.user
-        self.debug = args.debug
-        self.dryrun = args.dryrun
 
         try:
             self.config = self.fetch_config(netscaler_tool_config)
