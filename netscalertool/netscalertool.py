@@ -50,7 +50,6 @@ class Base(object):
         if not self.passwd:
             self.passwd = self.config['passwd']
 
-    def create_client(self):
         # Creating a client instance
         try:
             self.client = netscalerapi.Client(
@@ -66,10 +65,8 @@ class Base(object):
         except RuntimeError, e:
             raise RuntimeError(e)
 
-        return self.client
-
-    # Grabs passwd from passwd file.
     def fetch_config(self, netscaler_tool_config):
+        """Fetch configuration from file"""
         try:
             f = open(netscaler_tool_config)
         except IOError:
@@ -183,7 +180,6 @@ class Base(object):
 class Stat(Base):
     def __init__(self, args):
         super(Stat, self).__init__(args)
-        self.client = self.create_client()
 
     def lbvservers(self):
         stat = self.args.stat
@@ -200,7 +196,6 @@ class Stat(Base):
 class Show(Base):
     def __init__(self, args):
         super(Show, self).__init__(args)
-        self.client = self.create_client()
 
     def server(self):
         server = self.args.server
@@ -413,7 +408,6 @@ class Show(Base):
 class Compare(Base):
     def __init__(self, args):
         super(Compare, self).__init__(args)
-        self.client = self.create_client()
 
     def cleanup_config(self, config, ignore_res):
         newConfig = []
@@ -475,7 +469,6 @@ class Compare(Base):
 class Enable(Base):
     def __init__(self, args):
         super(Enable, self).__init__(args)
-        self.client = self.create_client()
 
     def server(self):
         server = self.args.server
@@ -518,7 +511,6 @@ class Enable(Base):
 class Disable(Base):
     def __init__(self, args):
         super(Disable, self).__init__(args)
-        self.client = self.create_client()
 
     def server(self):
         delay = self.args.delay
@@ -657,7 +649,7 @@ def main():
     try:
         local_host = socket.gethostbyaddr(socket.gethostname())[1][0]
     except (socket.herror, socket.gaierror), e:
-        localHost = 'localhost'
+        local_host = 'localhost'
     logger = logging.getLogger(local_host)
     logger.setLevel(logging.DEBUG)
 
