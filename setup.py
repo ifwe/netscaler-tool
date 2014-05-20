@@ -35,7 +35,7 @@ setup(
     author = "Brian Glogower",
     author_email = "bglogower@tagged.com",
     description = "Nitro API tool for managing NetScalers.",
-    license = "MIT",
+    license = "Apache v2.0",
     install_requires=REQUIREMENTS,
     entry_points = {
         'console_scripts': [
