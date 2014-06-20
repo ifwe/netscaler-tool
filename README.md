@@ -2,7 +2,6 @@
 
 ## System Requirements
 *  python >= 2.6 and python < 3
-   * Have not yet tested with python 3
 *  pip install -r requirements.txt
 
 ## NetScaler Requirements
@@ -11,7 +10,10 @@
   * Depending on your use case, you might only need a system user that is read-only
 
 ## Installation
-__Note__: Please replace __\<tag\>__ with version you wish to use
+__Notes__:
+* Please replace __\<tag\>__ with version you wish to use
+* By default, the log file is /var/log/netscaler-tool/netscaler-tool.log, but can be changed with --logfile
+
 ### RPM Spec File
 1. Download tar.gz specific version of the repo
  1. `https://github.tagged.com/bglogower/netscaler-tool/archive/v<tag>.tar.gz`

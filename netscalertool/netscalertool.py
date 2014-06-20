@@ -169,9 +169,9 @@ class Base(object):
         try:
             output = self.client.get_object(object)
         except RuntimeError as e:
-            msg = "Problem while trying to get server binding for server %s " \
-                  "" \
-                  "on %s.\n%s" % (server, self.args.host, e)
+            msg = "Problem while trying to get server binding for server %s" \
+                  " on %s.\n%s" % (
+                      server, self.args.host, e)
             raise RuntimeError(msg)
 
         for service in output[object[0]][0]['server_service_binding']:
@@ -636,42 +636,13 @@ def main():
                 if values not in ns_config["manage_vservers"]:
                     msg = "%s is a vserver that is not allowed to be " \
                           "managed. If you would like to change this, " \
-                          "please update %s." % (
-                          values, netscaler_tool_config)
+                          "please update %s." % (values, netscaler_tool_config)
                     print >> sys.stderr, msg
                     logger.info(msg)
                     sys.exit(1)
 
             setattr(namespace, self.dest, values)
 
-    # Grabbing the user that is running this script for logging purposes
-    if os.getenv('SUDO_USER'):
-        user = os.getenv('SUDO_USER')
-    else:
-        user = os.getenv('USER')
-
-    # Setting up logging
-    log_file = '/var/log/netscaler-tool/netscaler-tool.log'
-    try:
-        local_host = socket.gethostbyaddr(socket.gethostname())[1][0]
-    except (socket.herror, socket.gaierror):
-        local_host = 'localhost'
-    logger = logging.getLogger(local_host)
-    logger.setLevel(logging.DEBUG)
-
-    try:
-        ch = logging.FileHandler(log_file)
-    except IOError as e:
-        print >> sys.stderr, e
-        sys.exit(1)
-
-    ch.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        '%(asctime)s %(name)s - %(levelname)s - %(message)s',
-        datefmt='%b %d %H:%M:%S'
-    )
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
 
     # Create parser
     parser = argparse.ArgumentParser()
@@ -697,9 +668,11 @@ def main():
         going on.", default=False
     )
     parser.add_argument(
-        "--dryrun", action="store_true", dest="dryrun", help="Dryrun.",
-        default=False
-    )
+        "--dryrun", action="store_true", help="Dryrun", default=False)
+    parser.add_argument("--logfile",
+                        help="Location to write logs. Defaults to "
+                             "/var/log/netscaler-tool/netscaler-tool.log",
+                        default="/var/log/netscaler-tool/netscaler-tool.log")
 
     # Creating subparser.
     subparser = parser.add_subparsers(dest='topSubparserName')
@@ -841,6 +814,33 @@ def main():
     # Getting arguments
     args = parser.parse_args()
 
+    # Grabbing the user that is running this script for logging purposes
+    if os.getenv('SUDO_USER'):
+        user = os.getenv('SUDO_USER')
+    else:
+        user = os.getenv('USER')
+
+    try:
+        local_host = socket.gethostbyaddr(socket.gethostname())[1][0]
+    except (socket.herror, socket.gaierror):
+        local_host = 'localhost'
+    logger = logging.getLogger(local_host)
+    logger.setLevel(logging.DEBUG)
+
+    try:
+        ch = logging.FileHandler(args.logfile)
+    except IOError as e:
+        print >> sys.stderr, e
+        sys.exit(1)
+
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(
+        '%(asctime)s %(name)s - %(levelname)s - %(message)s',
+        datefmt='%b %d %H:%M:%S'
+    )
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
     # Set exit return value to 0
     retval = 0
 
@@ -868,6 +868,13 @@ def main():
         logger.critical(msg)
         return 1
 
+    # Remove password entry, since this info will be sent to a log
+    modified_args = vars(args).copy()
+    modified_args['passwd'] = "*****"
+    msg = "%s will try to execute \'%s\' on %s" % (
+        user, modified_args, modified_args['host'])
+    logger.info(msg)
+
     try:
         netscaler_tool = klass(args)
     except:
@@ -878,8 +885,6 @@ def main():
     try:
         try:
             getattr(netscaler_tool, method)()
-            msg = "%s executed \'%s\' on %s" % (user, args, args.host)
-            logger.info(msg)
         except (AttributeError, RuntimeError, KeyError, IOError):
             msg = "%s, %s" % (user, sys.exc_info()[1])
             print >> sys.stderr, msg
