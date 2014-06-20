@@ -38,7 +38,7 @@ try:
 except ImportError:
     try:
         import simplejson as json
-    except ImportError, e:
+    except ImportError as e:
         print >> sys.stderr, e
         sys.exit(1)
 
@@ -46,39 +46,36 @@ except ImportError:
 class Base(object):
     def __init__(self, args):
         self.args = args
-        self.debug = args.debug
-        self.dryrun = args.dryrun
-        self.host = args.host
-        self.passwd = args.passwd
-        self.user = args.user
 
         try:
             self.config = self.fetch_config(args.netscaler_tool_config)
         except IOError:
             raise
 
-        # If the operator doesn't specify a user, let's grab it from the config
-        if not self.user:
-            self.user = self.config['user']
+        # If the operator doesn't specify a user, let's grab it from the
+        # config
+        if not self.args.user:
+            self.args.user = self.config['user']
 
         # If the operator doesn't specify a passwd, let's grab it from the
         # config
-        if not self.passwd:
-            self.passwd = self.config['passwd']
+        if not self.args.passwd:
+            self.args.passwd = self.config['passwd']
 
         # Creating a client instance
         try:
             self.client = netscalerapi.Client(
-                self.host, self.user, self.passwd, self.debug
+                self.args.host, self.args.user, self.args.passwd,
+                self.args.debug
             )
-        except RuntimeError, e:
+        except RuntimeError as e:
             msg = "Problem creating client instance.\n%s" % (e)
             raise RuntimeError(msg)
 
         # Login using client instance
         try:
             self.client.login()
-        except RuntimeError, e:
+        except RuntimeError as e:
             raise RuntimeError(e)
 
     def fetch_config(self, netscaler_tool_config):
@@ -100,7 +97,7 @@ class Base(object):
 
         try:
             output = self.client.get_object(object)
-        except RuntimeError, e:
+        except RuntimeError as e:
             raise RuntimeError(e)
 
         for service in \
@@ -115,7 +112,7 @@ class Base(object):
 
         try:
             output = self.client.get_object(object)
-        except RuntimeError, e:
+        except RuntimeError as e:
             msg = "There was a problem getting the saved config: %s" % (e)
             raise RuntimeError(msg)
 
@@ -126,7 +123,7 @@ class Base(object):
 
         try:
             output = self.client.get_object(object)
-        except RuntimeError, e:
+        except RuntimeError as e:
             msg = "There was a problem getting the running config: %s" % (e)
             raise RuntimeError(msg)
 
@@ -138,13 +135,17 @@ class Base(object):
         object = ["lbvserver_service_binding", vserver]
         try:
             services = self.client.get_object(object)
-        except RuntimeError, e:
+        except RuntimeError as e:
             msg = "Problem while trying to get info about LB vserver %s on " \
-                  "%s.\n%s" % (vserver, self.host, e)
+                  "%s.\n%s" % (vserver, self.args.host, e)
             raise RuntimeError(msg)
 
-        for service in services[object[0]]:
-            services_ips[str(service['servicename'])] = str(service['ipv46'])
+        if services.has_key(object[0]):
+            for service in services[object[0]]:
+                services_ips[str(service['servicename'])] = str(service['ipv46'])
+        else:
+            msg = "%s does not have any services bound to it." % (vserver,)
+            raise RuntimeError(msg)
 
         return services_ips
 
@@ -155,9 +156,9 @@ class Base(object):
         object = ["lbvserver", vserver]
         try:
             output = self.client.get_object(object)
-        except RuntimeError, e:
+        except RuntimeError as e:
             msg = "Problem while trying to get info about LB vserver %s on " \
-                  "%s.\n%s" % (vserver, self.host, e)
+                  "%s.\n%s" % (vserver, self.args.host, e)
             raise RuntimeError(msg)
 
         return output[object[0]][0], attr
@@ -167,9 +168,10 @@ class Base(object):
         object = ["server_binding", server]
         try:
             output = self.client.get_object(object)
-        except RuntimeError, e:
+        except RuntimeError as e:
             msg = "Problem while trying to get server binding for server %s " \
-                  "on %s.\n%s" % (server, self.host, e)
+                  "" \
+                  "on %s.\n%s" % (server, self.args.host, e)
             raise RuntimeError(msg)
 
         for service in output[object[0]][0]['server_service_binding']:
@@ -182,9 +184,9 @@ class Base(object):
 
         try:
             output = self.client.get_object(object)
-        except RuntimeError, e:
+        except RuntimeError as e:
             msg = "Problem while trying to get server binding for server %s" \
-                  "on %s.\n%s" % (server, self.host, e)
+                  "on %s.\n%s" % (server, self.args.host, e)
             raise RuntimeError(msg)
 
         return output[object[0]][0]['server_service_binding']
@@ -194,32 +196,26 @@ class Base(object):
 
 
 class Stat(Base):
-    def __init__(self, args):
-        super(Stat, self).__init__(args)
-
     def lbvservers(self):
         stat = self.args.stat
         object = ["lbvserver"]
         try:
             output = self.client.get_object(object, "stats")
-        except RunTimeError, e:
-            msg = "Could not get stat: %s on %s" % (e, self.host)
+        except RunTimeError as e:
+            msg = "Could not get stat: %s on %s" % (e, self.args.host)
             raise RuntimeError(msg)
         for entry in output['lbvserver']:
             print json.dumps({entry['name']: entry[stat]})
 
 
 class Show(Base):
-    def __init__(self, args):
-        super(Show, self).__init__(args)
-
     def server(self):
         server = self.args.server
 
         if self.args.services:
             try:
                 list = self.get_server_binding_service_details(server)
-            except RuntimeError, e:
+            except RuntimeError as e:
                 msg = "Problem while trying to get list of services bound " \
                       "to %s.\n%s" % (server, e)
                 raise RuntimeError(msg)
@@ -230,9 +226,9 @@ class Show(Base):
             object = ["server", server]
             try:
                 output = self.client.get_object(object)
-            except RuntimeError, e:
+            except RuntimeError as e:
                 msg = "Problem while trying to get list of servers " \
-                      "on %s.\n%s" % (self.host, e)
+                      "on %s.\n%s" % (self.args.host, e)
                 raise RuntimeError(msg)
 
             print json.dumps(output['server'][0])
@@ -243,9 +239,9 @@ class Show(Base):
 
         try:
             output = self.client.get_object(object)
-        except RuntimeError, e:
+        except RuntimeError as e:
             msg = "Problem while trying to get list of servers " \
-                  "on %s.\n%s" % (self.host, e)
+                  "on %s.\n%s" % (self.args.host, e)
             raise RuntimeError(msg)
 
         for server in output['server']:
@@ -259,9 +255,9 @@ class Show(Base):
 
         try:
             output = self.client.get_object(object)
-        except RuntimeError, e:
+        except RuntimeError as e:
             msg = "Problem while trying to get list of services " \
-                  "on %s.\n%s" % (self.host, e)
+                  "on %s.\n%s" % (self.args.host, e)
             raise RuntimeError(msg)
 
         for service in output['service']:
@@ -275,9 +271,9 @@ class Show(Base):
 
         try:
             output = self.client.get_object(object)
-        except RuntimeError, e:
+        except RuntimeError as e:
             msg = "Problem while trying to get list of LB vservers " \
-                  "on %s.\n%s" % (self.host, e)
+                  "on %s.\n%s" % (self.args.host, e)
             raise RuntimeError(msg)
 
         for vserver in output['lbvserver']:
@@ -303,7 +299,7 @@ class Show(Base):
                     # for its service-to-server binding, since it is slow.
                     print socket.gethostbyaddr(output[service])[0].split(
                         '.')[0]
-                except socket.herror, e:
+                except socket.herror as  e:
                     raise RuntimeError(e)
         else:
             output, attrs = self.get_lb()
@@ -318,9 +314,9 @@ class Show(Base):
 
         try:
             output = self.client.get_object(object)
-        except RuntimeError, e:
+        except RuntimeError as e:
             msg = "Problem while trying to get list of CS vservers " \
-                  "on %s.\n%s" % (self.host, e)
+                  "on %s.\n%s" % (self.args.host, e)
             raise RuntimeError(msg)
 
         for vserver in output['csvserver']:
@@ -333,9 +329,9 @@ class Show(Base):
 
         try:
             output = self.client.get_object(object)
-        except RuntimeError, e:
+        except RuntimeError as e:
             msg = "Problem while trying to get IP of primary node " \
-                  "of %s.\n%s" % (self.host, e)
+                  "of %s.\n%s" % (self.args.host, e)
             raise RuntimeError(msg)
 
         # Grabbing the IP of the current primary
@@ -383,11 +379,11 @@ class Show(Base):
 
     def surgetotal(self):
         vserver = self.args.vserver
-        surgeCountTotal = 0
+        surge_count_total = 0
 
         try:
             output = self.get_bound_services(vserver)
-        except RuntimeError, e:
+        except RuntimeError as e:
             msg = "Problem getting bound services to %s.\n%s" % (vserver, e)
             raise RuntimeError(msg)
 
@@ -395,7 +391,7 @@ class Show(Base):
         for service in output:
             try:
                 output = self.get_service_stats(service, 'surgecount')
-            except RuntimeError, e:
+            except RuntimeError as e:
                 msg = "Problem getting surgecount of " \
                       "service %s.\n%s" % (service, e)
                 raise RuntimeError(msg)
@@ -403,12 +399,12 @@ class Show(Base):
             surge = int(output['surgecount'])
             if self.args.debug:
                 print "%s: %d" % (service, surge)
-            surgeCountTotal += surge
+            surge_count_total += surge
 
         if self.args.debug:
             print "\nTotal Surge Queue Size is:"
 
-        print surgeCountTotal
+        print surge_count_total
 
     def system(self):
         mode = 'stats'
@@ -422,16 +418,13 @@ class Show(Base):
 
 
 class Compare(Base):
-    def __init__(self, args):
-        super(Compare, self).__init__(args)
-
     def cleanup_config(self, config, ignore_res):
-        newConfig = []
+        new_config = []
         for line in config:
             if not re.match(ignore_res, line):
-                newConfig.append(line)
+                new_config.append(line)
 
-        return newConfig
+        return new_config
 
     def configs(self):
         # Regex that will be used to ignore lines we know are only in saved or
@@ -470,11 +463,13 @@ class Compare(Base):
 
         # Getting a list of bound services to each vserver so that we
         # can compare.
-        listOfServices1 = self.get_lbvserver_service_binding(vserver1)
-        listOfServices2 = self.get_lbvserver_service_binding(vserver2)
+        list_of_services1 = self.get_lbvserver_service_binding(vserver1)
+        list_of_services2 = self.get_lbvserver_service_binding(vserver2)
+
+        print "hi there", list_of_services2
 
         # If we get a diff, we will let the user know
-        diff = set(listOfServices1) ^ set(listOfServices2)
+        diff = set(list_of_services1) ^ set(list_of_services2)
         if diff:
             msg = "The following services are either bound to %s or %s but " \
                   "not both:\n%s" % (vserver1, vserver2,
@@ -483,9 +478,6 @@ class Compare(Base):
 
 
 class Enable(Base):
-    def __init__(self, args):
-        super(Enable, self).__init__(args)
-
     def server(self):
         server = self.args.server
         services = self.get_server_binding(server)
@@ -525,9 +517,6 @@ class Enable(Base):
 
 
 class Disable(Base):
-    def __init__(self, args):
-        super(Disable, self).__init__(args)
-
     def server(self):
         delay = self.args.delay
         server = self.args.server
@@ -548,7 +537,7 @@ class Disable(Base):
 
             try:
                 if self.args.debug:
-                    print "\nAttempting to disable service %s" % (service)
+                    print "\nAttempting to disable service %s" % (service,)
                 self.client.modify_object(properties)
             except RuntimeError:
                 raise
@@ -585,7 +574,8 @@ def main():
         def __call__(self, parser, namespace, values, option_string=None):
             pingCmd = "ping -c 1 -W 2 %s" % (values)
             process = subprocess.call(
-                pingCmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                pingCmd.split(), stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
 
             if process != 0:
@@ -594,7 +584,6 @@ def main():
                 return sys.exit(1)
 
             setattr(namespace, self.dest, values)
-
 
     class AllowedToManage(argparse.Action):
         """
@@ -606,7 +595,7 @@ def main():
 
             try:
                 f = open(netscaler_tool_config, 'r')
-            except IOError, e:
+            except IOError as e:
                 print >> sys.stderr, e
                 sys.exit(1)
 
@@ -624,7 +613,7 @@ def main():
                         manageable_servers = subprocess.check_output(
                             cmd.split()
                         )
-                    except subprocess.CalledProcessError, e:
+                    except subprocess.CalledProcessError as e:
                         print >> sys.stderr, e
                         logger.critical(e)
                         sys.exit(1)
@@ -647,7 +636,8 @@ def main():
                 if values not in ns_config["manage_vservers"]:
                     msg = "%s is a vserver that is not allowed to be " \
                           "managed. If you would like to change this, " \
-                          "please update %s." % (values, netscaler_tool_config)
+                          "please update %s." % (
+                          values, netscaler_tool_config)
                     print >> sys.stderr, msg
                     logger.info(msg)
                     sys.exit(1)
@@ -661,17 +651,17 @@ def main():
         user = os.getenv('USER')
 
     # Setting up logging
-    logFile = '/var/log/netscaler-tool/netscaler-tool.log'
+    log_file = '/var/log/netscaler-tool/netscaler-tool.log'
     try:
         local_host = socket.gethostbyaddr(socket.gethostname())[1][0]
-    except (socket.herror, socket.gaierror), e:
+    except (socket.herror, socket.gaierror):
         local_host = 'localhost'
     logger = logging.getLogger(local_host)
     logger.setLevel(logging.DEBUG)
 
     try:
-        ch = logging.FileHandler(logFile)
-    except IOError, e:
+        ch = logging.FileHandler(log_file)
+    except IOError as e:
         print >> sys.stderr, e
         sys.exit(1)
 
@@ -800,7 +790,8 @@ def main():
     subparserEnable = parserEnable.add_subparsers(dest='subparserName')
     parserEnableServer = subparserEnable.add_parser(
         'server',
-        help='Enable server. Will actually enable all services bound to server'
+        help='Enable server. Will actually enable all services bound to '
+             'server'
     )
     parserEnableServer.add_argument(
         'server', action=AllowedToManage, help='Server to enable'
@@ -849,13 +840,12 @@ def main():
 
     # Getting arguments
     args = parser.parse_args()
-    debug = args.debug
 
     # Set exit return value to 0
     retval = 0
 
     # Showing user flags and their values
-    if debug:
+    if args.debug:
         print "Using the following args:"
         for arg in dir(args):
             regex = "(^_{1,2}|^read_file|^read_module|^ensure_value)"
@@ -901,7 +891,7 @@ def main():
             try:
                 netscaler_tool.client.save_config()
                 logger.info("Saving NetScaler config")
-            except RuntimeError, e:
+            except RuntimeError as e:
                 print >> sys.stderr, e
                 logger.critical(e)
                 retval = 1
@@ -909,18 +899,18 @@ def main():
         # Logging out of NetScaler.
         try:
             netscaler_tool.client.logout()
-            if debug:
+            if args.debug:
                 msg = "Logging out of NetScaler %s" % (args.host,)
                 logger.debug(msg)
                 print "\n", msg
-        except RuntimeError, e:
+        except RuntimeError as e:
             msg = "%s, %s" % (user, e)
             print >> sys.stderr, msg
             logger.warn(msg)
             retval = 1
 
-        # Exiting program
-        return retval
+    # Exiting program
+    return retval
 
 
 # Run the script only if the script itself is called directly.

@@ -27,6 +27,7 @@ if sys.version_info >= (2, 7) or sys.version_info >= (3, 2):
 if sys.version_info >= (2, 6) or sys.version_info >= (3, 1):
     PYTHON_REQ_BLACKLIST.append('simplejson')
 
+
 def load_requirements(fname):
     requirements = []
 
@@ -45,7 +46,7 @@ REQUIREMENTS = load_requirements('requirements.txt')
 
 setup(
     name='netscaler-tool',
-    version='1.17',
+    version='1.18',
     packages = find_packages(),
 
     author = "Brian Glogower",
