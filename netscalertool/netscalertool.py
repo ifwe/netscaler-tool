@@ -652,20 +652,20 @@ def main():
 
     parser.add_argument(
         "host", metavar='NETSCALER', action=IsPingableAction, help="IP or \
-        name of NetScaler."
+        DNS name of NetScaler"
     )
-    parser.add_argument("--user", dest="user", help="NetScaler user account.")
+    parser.add_argument("--user", help="NetScaler user account")
     parser.add_argument(
         "--passwd", dest="passwd", help="Password for user. Default is to \
-        fetch from netscalertool.conf."
+        fetch from /etc/netscalertool.conf"
     )
     parser.add_argument(
         "--nodns", action="store_true", dest="noDns", help="Won't try to \
-        resolve any netscaler objects.", default=False
+        resolve any netscaler objects", default=False
     )
     parser.add_argument(
-        "--debug", action="store_true", dest="debug", help="Shows what's \
-        going on.", default=False
+        "--debug", action="store_true", help="Shows what's \
+        going on", default=False
     )
     parser.add_argument(
         "--dryrun", action="store_true", help="Dryrun", default=False)
