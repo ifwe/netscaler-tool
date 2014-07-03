@@ -70,7 +70,7 @@ class Client:
         data = json.loads(content)
         errorcode = data["errorcode"]
 
-        if response.status != 200 or errorcode != 0:
+        if response.status not in [200, 201] or errorcode != 0:
             raise RuntimeError(content)
 
         if self.debug:
