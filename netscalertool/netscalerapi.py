@@ -34,14 +34,9 @@ except ImportError:
 
 
 class Client:
-    def __init__(self, host, user, passwd, debug):
-        self.host = host
-        self.user = user
-        self.passwd = passwd
-        self.debug = debug
-
-        #if self.debug:
-        #    httplib2.debuglevel=4
+    def __init__(self, args):
+        for k, v in vars(args).iteritems():
+            setattr(self, k, v)
 
     def login(self):
         """

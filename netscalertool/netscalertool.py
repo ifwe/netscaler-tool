@@ -64,10 +64,7 @@ class Base(object):
 
         # Creating a client instance
         try:
-            self.client = netscalerapi.Client(
-                self.args.host, self.args.user, self.args.passwd,
-                self.args.debug
-            )
+            self.client = netscalerapi.Client(args)
         except RuntimeError as e:
             msg = "Problem creating client instance.\n%s" % (e)
             raise RuntimeError(msg)
