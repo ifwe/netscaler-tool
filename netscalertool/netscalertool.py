@@ -799,7 +799,7 @@ def main():
         'vserver', action=AllowedToManage, help='Vserver to disable'
     )
 
-    # Creating disable subparser.
+    # Creating bounce subparser
     parserBounce = subparser.add_parser(
         'bounce', help='sub-command for bouncing objects'
     )
