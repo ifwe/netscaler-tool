@@ -17,6 +17,7 @@ limitations under the License.
 """
 
 import argparse
+import json
 import logging
 import os
 import re
@@ -27,20 +28,6 @@ import yaml
 
 import netscalerapi
 import utils
-
-
-# simplejson is used on CentOS 5, while
-# json is used on CentOS 6.
-# Trying to import json first, followed
-# by simplejson second if there is a failure
-try:
-    import json
-except ImportError:
-    try:
-        import simplejson as json
-    except ImportError as e:
-        print >> sys.stderr, e
-        sys.exit(1)
 
 
 class Base(object):
@@ -66,16 +53,16 @@ class Base(object):
         try:
             self.client = netscalerapi.Client(args)
         except RuntimeError as e:
-            msg = "Problem creating client instance.\n%s" % (e)
+            msg = "Problem creating client instance.\n%s" % e
             raise RuntimeError(msg)
 
         # Login using client instance
         try:
             self.client.login()
-        except RuntimeError as e:
-            raise RuntimeError(e)
+        except RuntimeError:
+            raise
 
-    def fetch_config(self, netscaler_tool_config):
+    def fetch_config(netscaler_tool_config):
         """Fetch configuration from file"""
         try:
             f = open(netscaler_tool_config)
@@ -89,11 +76,11 @@ class Base(object):
         return config
 
     def get_bound_services(self, vserver):
-        object = ["lbvserver_binding", vserver]
+        ns_object = ["lbvserver_binding", vserver]
         list_of_bound_services = []
 
         try:
-            output = self.client.get_object(object)
+            output = self.client.get_object(ns_object)
         except RuntimeError as e:
             raise RuntimeError(e)
 
@@ -105,23 +92,23 @@ class Base(object):
         return list_of_bound_services
 
     def get_saved_config(self):
-        object = ["nssavedconfig"]
+        ns_object = ["nssavedconfig"]
 
         try:
-            output = self.client.get_object(object)
+            output = self.client.get_object(ns_object)
         except RuntimeError as e:
-            msg = "There was a problem getting the saved config: %s" % (e)
+            msg = "There was a problem getting the saved config: %s" % e
             raise RuntimeError(msg)
 
         return output['nssavedconfig']['textblob']
 
     def get_running_config(self):
-        object = ["nsrunningconfig"]
+        ns_object = ["nsrunningconfig"]
 
         try:
-            output = self.client.get_object(object)
+            output = self.client.get_object(ns_object)
         except RuntimeError as e:
-            msg = "There was a problem getting the running config: %s" % (e)
+            msg = "There was a problem getting the running config: %s" % e
             raise RuntimeError(msg)
 
         return output['nsrunningconfig']['response']
@@ -129,19 +116,20 @@ class Base(object):
     def get_lbvserver_service_binding(self, vserver):
         services_ips = {}
 
-        object = ["lbvserver_service_binding", vserver]
+        ns_object = ["lbvserver_service_binding", vserver]
         try:
-            services = self.client.get_object(object)
+            services = self.client.get_object(ns_object)
         except RuntimeError as e:
             msg = "Problem while trying to get info about LB vserver %s on " \
                   "%s.\n%s" % (vserver, self.args.host, e)
             raise RuntimeError(msg)
 
-        if services.has_key(object[0]):
-            for service in services[object[0]]:
-                services_ips[str(service['servicename'])] = str(service['ipv46'])
-        else:
-            msg = "%s does not have any services bound to it." % (vserver,)
+        try:
+            for service in services[ns_object[0]]:
+                services_ips[str(service['servicename'])] = str(
+                    service['ipv46'])
+        except KeyError:
+            msg = "%s does not have any services bound to it." % vserver
             raise RuntimeError(msg)
 
         return services_ips
@@ -150,43 +138,43 @@ class Base(object):
         attr = self.args.attr
         vserver = self.args.vserver
 
-        object = ["lbvserver", vserver]
+        ns_object = ["lbvserver", vserver]
         try:
-            output = self.client.get_object(object)
+            output = self.client.get_object(ns_object)
         except RuntimeError as e:
             msg = "Problem while trying to get info about LB vserver %s on " \
                   "%s.\n%s" % (vserver, self.args.host, e)
             raise RuntimeError(msg)
 
-        return output[object[0]][0], attr
+        return output[ns_object[0]][0], attr
 
     def get_server_binding(self, server):
         services = []
-        object = ["server_binding", server]
+        ns_object = ["server_binding", server]
         try:
-            output = self.client.get_object(object)
+            output = self.client.get_object(ns_object)
         except RuntimeError as e:
             msg = "Problem while trying to get server binding for server %s" \
                   " on %s.\n%s" % (
                       server, self.args.host, e)
             raise RuntimeError(msg)
 
-        for service in output[object[0]][0]['server_service_binding']:
+        for service in output[ns_object[0]][0]['server_service_binding']:
             services.append(service['servicename'])
 
         return services
 
     def get_server_binding_service_details(self, server):
-        object = ["server_binding", server]
+        ns_object = ["server_binding", server]
 
         try:
-            output = self.client.get_object(object)
+            output = self.client.get_object(ns_object)
         except RuntimeError as e:
             msg = "Problem while trying to get server binding for server %s" \
                   "on %s.\n%s" % (server, self.args.host, e)
             raise RuntimeError(msg)
 
-        return output[object[0]][0]['server_service_binding']
+        return output[ns_object[0]][0]['server_service_binding']
 
     def vserver(self):
         pass
@@ -195,14 +183,20 @@ class Base(object):
 class Stat(Base):
     def lbvservers(self):
         stat = self.args.stat
-        object = ["lbvserver"]
+        ns_object = ["lbvserver"]
+
         try:
-            output = self.client.get_object(object, "stats")
-        except RunTimeError as e:
+            output = self.client.get_object(ns_object, "stats")
+        except RuntimeError as e:
             msg = "Could not get stat: %s on %s" % (e, self.args.host)
             raise RuntimeError(msg)
+
         for entry in output['lbvserver']:
-            print json.dumps({entry['name']: entry[stat]})
+            try:
+                print json.dumps({entry['name']: entry[stat]})
+            except KeyError:
+                msg = "%s is not a valid stat for lb vservers" % stat
+                raise KeyError(msg)
 
 
 class Show(Base):
@@ -211,18 +205,18 @@ class Show(Base):
 
         if self.args.services:
             try:
-                list = self.get_server_binding_service_details(server)
+                ns_list = self.get_server_binding_service_details(server)
             except RuntimeError as e:
                 msg = "Problem while trying to get list of services bound " \
                       "to %s.\n%s" % (server, e)
                 raise RuntimeError(msg)
 
-            for entry in list:
+            for entry in ns_list:
                 print json.dumps(entry)
         else:
-            object = ["server", server]
+            ns_object = ["server", server]
             try:
-                output = self.client.get_object(object)
+                output = self.client.get_object(ns_object)
             except RuntimeError as e:
                 msg = "Problem while trying to get list of servers " \
                       "on %s.\n%s" % (self.args.host, e)
@@ -231,52 +225,52 @@ class Show(Base):
             print json.dumps(output['server'][0])
 
     def servers(self):
-        object = ["server"]
-        listOfServers = []
+        ns_object = ["server"]
+        list_of_servers = []
 
         try:
-            output = self.client.get_object(object)
+            output = self.client.get_object(ns_object)
         except RuntimeError as e:
             msg = "Problem while trying to get list of servers " \
                   "on %s.\n%s" % (self.args.host, e)
             raise RuntimeError(msg)
 
         for server in output['server']:
-            listOfServers.append(server['name'])
+            list_of_servers.append(server['name'])
 
-        utils.print_list(sorted(listOfServers))
+        utils.print_list(sorted(list_of_servers))
 
     def services(self):
-        object = ["service"]
-        listOfServices = []
+        ns_object = ["service"]
+        list_of_services = []
 
         try:
-            output = self.client.get_object(object)
+            output = self.client.get_object(ns_object)
         except RuntimeError as e:
             msg = "Problem while trying to get list of services " \
                   "on %s.\n%s" % (self.args.host, e)
             raise RuntimeError(msg)
 
         for service in output['service']:
-            listOfServices.append(service['name'])
+            list_of_services.append(service['name'])
 
-        utils.print_list(sorted(listOfServices))
+        utils.print_list(sorted(list_of_services))
 
     def lbvservers(self):
-        object = ["lbvserver"]
-        listOfLbVservers = []
+        ns_object = ["lbvserver"]
+        list_of_lbvservers = []
 
         try:
-            output = self.client.get_object(object)
+            output = self.client.get_object(ns_object)
         except RuntimeError as e:
             msg = "Problem while trying to get list of LB vservers " \
                   "on %s.\n%s" % (self.args.host, e)
             raise RuntimeError(msg)
 
         for vserver in output['lbvserver']:
-            listOfLbVservers.append(vserver['name'])
+            list_of_lbvservers.append(vserver['name'])
 
-        utils.print_list(sorted(listOfLbVservers))
+        utils.print_list(sorted(list_of_lbvservers))
 
     def lbvserver(self):
         vserver = self.args.vserver
@@ -296,7 +290,7 @@ class Show(Base):
                     # for its service-to-server binding, since it is slow.
                     print socket.gethostbyaddr(output[service])[0].split(
                         '.')[0]
-                except socket.herror as  e:
+                except socket.herror as e:
                     raise RuntimeError(e)
         else:
             output, attrs = self.get_lb()
@@ -306,11 +300,11 @@ class Show(Base):
                 print json.dumps(output)
 
     def csvservers(self):
-        object = ["csvserver"]
+        ns_object = ["csvserver"]
         list_of_cs_vservers = []
 
         try:
-            output = self.client.get_object(object)
+            output = self.client.get_object(ns_object)
         except RuntimeError as e:
             msg = "Problem while trying to get list of CS vservers " \
                   "on %s.\n%s" % (self.args.host, e)
@@ -322,10 +316,10 @@ class Show(Base):
         utils.print_list(sorted(list_of_cs_vservers))
 
     def primarynode(self):
-        object = ["hanode"]
+        ns_object = ["hanode"]
 
         try:
-            output = self.client.get_object(object)
+            output = self.client.get_object(ns_object)
         except RuntimeError as e:
             msg = "Problem while trying to get IP of primary node " \
                   "of %s.\n%s" % (self.args.host, e)
@@ -342,30 +336,30 @@ class Show(Base):
 
     def get_service_stats(self, service, *args):
         mode = 'stats'
-        object = ["service", service]
-        DictOfServiceStats = {}
+        ns_object = ["service", service]
+        dict_of_service_stats = {}
 
         if args:
-            object.extend(args)
+            ns_object.extend(args)
 
         try:
-            output = self.client.get_object(object, mode)
+            output = self.client.get_object(ns_object, mode)
         except RuntimeError:
             raise
 
         for stat in args:
             try:
-                DictOfServiceStats[stat] = output['service'][0][stat]
+                dict_of_service_stats[stat] = output['service'][0][stat]
             except KeyError:
-                msg = "%s is not a valid stat." % (stat)
+                msg = "%s is not a valid stat." % stat
                 raise KeyError(msg)
 
-        return DictOfServiceStats
+        return dict_of_service_stats
 
     def sslcerts(self):
-        object = ["sslcertkey"]
+        ns_object = ["sslcertkey"]
         try:
-            output = self.client.get_object(object)
+            output = self.client.get_object(ns_object)
         except RuntimeError:
             raise
 
@@ -405,38 +399,36 @@ class Show(Base):
 
     def system(self):
         mode = 'stats'
-        object = ["system"]
+        ns_object = ["system"]
 
         try:
-            output = self.client.get_object(object, mode)
+            output = self.client.get_object(ns_object, mode)
         except RuntimeError:
             raise
         print json.dumps(output['system'])
 
 
+def cleanup_config(config, ignore_res):
+    new_config = []
+    for line in config:
+        if not re.match(ignore_res, line):
+            new_config.append(line)
+
+    return new_config
+
+
 class Compare(Base):
-    def cleanup_config(self, config, ignore_res):
-        new_config = []
-        for line in config:
-            if not re.match(ignore_res, line):
-                new_config.append(line)
-
-        return new_config
-
     def configs(self):
         # Regex that will be used to ignore lines we know are only in saved or
         # running configs, which will always show up in a diff.
         ignore_res = "^# Last modified|^set appfw|^set lb monitor https? HTTP"
 
-        # Getting saved and running configs. Splitting on newline
-        # to make it easier to compare the two.
-        saved = self.get_saved_config().split('\n')
-        running = self.get_running_config().split('\n')
-
-        # Parsing configs and creating new lists that exclude
-        # anything lines that much ignore_res.
-        saved = self.cleanup_config(saved, ignore_res)
-        running = self.cleanup_config(running, ignore_res)
+        # Parsing configs and creating new lists that exclude any lines that
+        # much ignore_res.
+        saved = cleanup_config(self.get_saved_config().split('\n'),
+                               ignore_res)
+        running = cleanup_config(self.get_running_config().split('\n'),
+                                 ignore_res)
 
         # If the configs have differences, why have a problem
         if saved != running:
@@ -463,8 +455,6 @@ class Compare(Base):
         list_of_services1 = self.get_lbvserver_service_binding(vserver1)
         list_of_services2 = self.get_lbvserver_service_binding(vserver2)
 
-        print "hi there", list_of_services2
-
         # If we get a diff, we will let the user know
         diff = set(list_of_services1) ^ set(list_of_services2)
         if diff:
@@ -490,7 +480,7 @@ class Enable(Base):
 
             try:
                 if self.args.debug:
-                    print "\nAttempting to enable service %s" % (service)
+                    print "\nAttempting to enable service %s" % service
                 self.client.modify_object(properties)
             except RuntimeError:
                 raise
@@ -505,7 +495,7 @@ class Enable(Base):
 
         try:
             if self.args.debug:
-                print "\nAttempting to enable vserver %s" % (vserver)
+                print "\nAttempting to enable vserver %s" % vserver
             self.client.modify_object(properties)
         except RuntimeError:
             raise
@@ -534,7 +524,7 @@ class Disable(Base):
 
             try:
                 if self.args.debug:
-                    print "\nAttempting to disable service %s" % (service,)
+                    print "\nAttempting to disable service %s" % service
                 self.client.modify_object(properties)
             except RuntimeError:
                 raise
@@ -549,7 +539,7 @@ class Disable(Base):
 
         try:
             if self.args.debug:
-                print "\nAttempting to disable vserver %s" % (vserver)
+                print "\nAttempting to disable vserver %s" % vserver
             self.client.modify_object(properties)
         except RuntimeError:
             raise
@@ -562,6 +552,7 @@ class Bounce(Disable, Enable):
         super(Bounce, self).vserver()
 
 
+# noinspection PyBroadException
 def main():
     class IsPingableAction(argparse.Action):
         """
@@ -569,14 +560,14 @@ def main():
         """
 
         def __call__(self, parser, namespace, values, option_string=None):
-            pingCmd = "ping -c 1 -W 2 %s" % (values)
+            ping_cmd = "ping -c 1 -W 2 %s" % values
             process = subprocess.call(
-                pingCmd.split(), stdout=subprocess.PIPE,
+                ping_cmd.split(), stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
 
             if process != 0:
-                msg = "%s is not alive." % (values)
+                msg = "%s is not alive." % values
                 print >> sys.stderr, msg
                 return sys.exit(1)
 
@@ -584,7 +575,7 @@ def main():
 
     class AllowedToManage(argparse.Action):
         """
-        Used by argparse to checks if object is allowed to be managed
+        Used by argparse to checks if ns_object is allowed to be managed
         """
 
         def __call__(self, parser, namespace, values, option_string=None):
@@ -593,7 +584,8 @@ def main():
             try:
                 f = open(netscaler_tool_config, 'r')
             except IOError as e:
-                print >> sys.stderr, e
+                msg = "Problem with %s: %s" % (ns_config, e)
+                print >> sys.stderr, msg
                 sys.exit(1)
 
             ns_config = yaml.load(f)
@@ -601,11 +593,11 @@ def main():
 
             if namespace.subparserName == "server":
                 # Checking if specified server is allowed to be managed
-                if ns_config["external_nodes"]:
+                try:
+                    cmd = ns_config["external_nodes"]
                     try:
-                        cmd = ns_config["external_nodes"]
                         msg = "Running \"%s\" to get a list of manageable " \
-                              "servers" % (cmd,)
+                              "servers" % cmd
                         logger.info(msg)
                         manageable_servers = subprocess.check_output(
                             cmd.split()
@@ -618,14 +610,13 @@ def main():
                     if values not in manageable_servers.split('\n'):
                         msg = "%s is not a manageable server. If you would " \
                               "like to change this, please update " \
-                              "external_nodes in %s" % (values,
-                                                        netscaler_tool_config)
+                              "external_nodes in %s" % (values, ns_config)
                         print >> sys.stderr, msg
                         logger.error(msg)
                         sys.exit(1)
-                else:
+                except KeyError:
                     msg = "external_nodes not set in %s. All servers are " \
-                          "allowed to be managed" % (netscaler_tool_config,)
+                          "allowed to be managed" % netscaler_tool_config
                     logger.info(msg)
 
             # Checking if specified vserver is allowed to be managed
@@ -633,13 +624,13 @@ def main():
                 if values not in ns_config["manage_vservers"]:
                     msg = "%s is a vserver that is not allowed to be " \
                           "managed. If you would like to change this, " \
-                          "please update %s." % (values, netscaler_tool_config)
+                          "please update %s." % (
+                              values, netscaler_tool_config)
                     print >> sys.stderr, msg
                     logger.info(msg)
                     sys.exit(1)
 
             setattr(namespace, self.dest, values)
-
 
     # Create parser
     parser = argparse.ArgumentParser()
@@ -657,8 +648,8 @@ def main():
         fetch from /etc/netscalertool.conf"
     )
     parser.add_argument(
-        "--nodns", action="store_true", dest="noDns", help="Won't try to \
-        resolve any netscaler objects", default=False
+        "--nodns", action="store_true", help="Won't try to resolve any "
+        "NetScaler objects", default=False
     )
     parser.add_argument(
         "--debug", action="store_true", help="Shows what's \
@@ -675,170 +666,144 @@ def main():
     subparser = parser.add_subparsers(dest='topSubparserName')
 
     # Creating show subparser.
-    parserShow = subparser.add_parser(
+    parser_show = subparser.add_parser(
         'show', help='sub-command for showing objects'
     )
-    subparserShow = parserShow.add_subparsers(dest='subparserName')
-    subparserShow.add_parser('lb-vservers', help='Shows all lb vservers')
-    parserShowLbVserver = subparserShow.add_parser(
+    subparser_show = parser_show.add_subparsers(dest='subparserName')
+    subparser_show.add_parser('lb-vservers', help='Shows all lb vservers')
+    parser_show_lbvserver = subparser_show.add_parser(
         'lb-vserver', help='Shows stat(s) of a specified lb vserver'
     )
-    parserShowLbVserver.add_argument(
+    parser_show_lbvserver.add_argument(
         'vserver', help='Shows stats for specified vserver'
     )
-    parserShowLbVserverGroup = parserShowLbVserver \
+    parser_show_lbvserver_group = parser_show_lbvserver \
         .add_mutually_exclusive_group()
-    parserShowLbVserverGroup.add_argument(
+    parser_show_lbvserver_group.add_argument(
         '--attr', dest='attr', nargs='*', help='Shows only the specified \
         attribute(s)'
     )
-    parserShowLbVserverGroup.add_argument(
+    parser_show_lbvserver_group.add_argument(
         '--services', action='store_true', help='Shows services bound to \
         specified lb vserver'
     )
-    parserShowLbVserverGroup.add_argument(
+    parser_show_lbvserver_group.add_argument(
         '--servers', action='store_true', help='Shows servers bound to \
         specified lb vserver'
     )
-    subparserShow.add_parser('cs-vservers', help='Shows all cs vservers')
-    parserShowServer = subparserShow.add_parser(
+    subparser_show.add_parser('cs-vservers', help='Shows all cs vservers')
+    parser_show_server = subparser_show.add_parser(
         'server', help='Shows server info'
     )
-    parserShowServer.add_argument('server', help='Shows server details')
-    parserShowServer.add_argument(
+    parser_show_server.add_argument('server', help='Shows server details')
+    parser_show_server.add_argument(
         '--services', action='store_true', help='Shows services bound to \
         server and their status'
     )
-    subparserShow.add_parser('servers', help='Shows all servers')
-    subparserShow.add_parser('services', help='Shows all services')
-    subparserShow.add_parser(
+    subparser_show.add_parser('servers', help='Shows all servers')
+    subparser_show.add_parser('services', help='Shows all services')
+    subparser_show.add_parser(
         'primary-node', help='Shows which of the two nodes is primary'
     )
-    subparserShow.add_parser(
+    subparser_show.add_parser(
         'ssl-certs', help='Shows ssl certs and days until expiring'
     )
-    parserShowSurgeTotal = subparserShow.add_parser(
+    parser_show_surge_total = subparser_show.add_parser(
         'surge-total', help='Shows surge total for a lb vserver'
     )
-    parserShowSurgeTotal.add_argument(
+    parser_show_surge_total.add_argument(
         'vserver', help='Shows surge total for which lb vserver'
     )
-    subparserShow.add_parser('saved-config', help='Shows saved ns config')
-    subparserShow.add_parser('running-config', help='Shows running ns config')
-    subparserShow.add_parser('system', help='Shows system counters')
+    subparser_show.add_parser('saved-config', help='Shows saved ns config')
+    subparser_show.add_parser('running-config',
+                              help='Shows running ns config')
+    subparser_show.add_parser('system', help='Shows system counters')
 
     # Creating stat subparser
-    parserStat = subparser.add_parser(
-        'stat', help='sub-command for showing object stats'
+    parser_stat = subparser.add_parser(
+        'stat', help='sub-command for showing ns_object stats'
     )
-    subparserStat = parserStat.add_subparsers(dest='subparserName')
-    parserStatLbVservers = subparserStat.add_parser(
+    subparser_stat = parser_stat.add_subparsers(dest='subparserName')
+    parser_stat_lb_vservers = subparser_stat.add_parser(
         'lb-vservers', help='Shows stats of all lbvservers'
     )
-    parserStatLbVservers.add_argument(
+    parser_stat_lb_vservers.add_argument(
         'stat', help='Select specific stat to display'
     )
 
     # Creating compare subparser.
-    parserCmp = subparser.add_parser(
+    parser_cmp = subparser.add_parser(
         'compare', help='sub-command for comparing objects'
     )
-    subparserCmp = parserCmp.add_subparsers(dest='subparserName')
-    subparserCmp.add_parser(
+    subparser_cmp = parser_cmp.add_subparsers(dest='subparserName')
+    subparser_cmp.add_parser(
         'configs', help='Compares running and saved ns configs'
     )
-    parserCmpLbVservers = subparserCmp.add_parser(
+    parser_cmp_lbvservers = subparser_cmp.add_parser(
         'lb-vservers', help='Compares configs between two vservers'
     )
-    parserCmpLbVservers.add_argument('vserver1', metavar='VSERVER1')
-    parserCmpLbVservers.add_argument('vserver2', metavar='VSERVER2')
+    parser_cmp_lbvservers.add_argument('vserver1', metavar='VSERVER1')
+    parser_cmp_lbvservers.add_argument('vserver2', metavar='VSERVER2')
 
     # Creating enable subparser.
-    parserEnable = subparser.add_parser(
+    parser_enable = subparser.add_parser(
         'enable', help='sub-command for enable objects'
     )
-    subparserEnable = parserEnable.add_subparsers(dest='subparserName')
-    parserEnableServer = subparserEnable.add_parser(
+    subparser_enable = parser_enable.add_subparsers(dest='subparserName')
+    parser_enable_server = subparser_enable.add_parser(
         'server',
         help='Enable server. Will actually enable all services bound to '
              'server'
     )
-    parserEnableServer.add_argument(
+    parser_enable_server.add_argument(
         'server', action=AllowedToManage, help='Server to enable'
     )
-    parserEnableVserver = subparserEnable.add_parser(
+    parser_enable_vserver = subparser_enable.add_parser(
         'vserver', help='Enable vserver'
     )
-    parserEnableVserver.add_argument(
+    parser_enable_vserver.add_argument(
         'vserver', action=AllowedToManage, help='Vserver to enable'
     )
 
     # Creating disable subparser.
-    parserDisable = subparser.add_parser(
+    parser_disable = subparser.add_parser(
         'disable', help='sub-command for disabling objects'
     )
-    subparserDisable = parserDisable.add_subparsers(dest='subparserName')
-    parserDisableServer = subparserDisable.add_parser(
+    subparser_disable = parser_disable.add_subparsers(dest='subparserName')
+    parser_disable_server = subparser_disable.add_parser(
         'server', help='Disable server'
     )
-    parserDisableServer.add_argument(
+    parser_disable_server.add_argument(
         'server', action=AllowedToManage, help='Server to disable. Will \
         actually disable all services bound to server'
     )
-    parserDisableServer.add_argument(
+    parser_disable_server.add_argument(
         '--delay', type=int, help='The time allowed (in seconds) for a \
         graceful shutdown. Defaults to 3 seconds', default=3
     )
-    parserDisableVserver = subparserDisable.add_parser(
+    parser_disable_vserver = subparser_disable.add_parser(
         'vserver', help='Disable vserver'
     )
-    parserDisableVserver.add_argument(
+    parser_disable_vserver.add_argument(
         'vserver', action=AllowedToManage, help='Vserver to disable'
     )
 
     # Creating bounce subparser
-    parserBounce = subparser.add_parser(
+    parser_bounce = subparser.add_parser(
         'bounce', help='sub-command for bouncing objects'
     )
-    subparserBounce = parserBounce.add_subparsers(dest='subparserName')
-    parserBounceVserver = subparserBounce.add_parser(
+    subparser_bounce = parser_bounce.add_subparsers(dest='subparserName')
+    parser_bounce_vserver = subparser_bounce.add_parser(
         'vserver', help='Bounce vserver'
     )
-    parserBounceVserver.add_argument(
+    parser_bounce_vserver.add_argument(
         'vserver', action=AllowedToManage, help='Vserver to bounce'
     )
 
     # Getting arguments
     args = parser.parse_args()
 
-    # Grabbing the user that is running this script for logging purposes
-    if os.getenv('SUDO_USER'):
-        user = os.getenv('SUDO_USER')
-    else:
-        user = os.getenv('USER')
-
-    try:
-        local_host = socket.gethostbyaddr(socket.gethostname())[1][0]
-    except (socket.herror, socket.gaierror):
-        local_host = 'localhost'
-    logger = logging.getLogger(local_host)
-    logger.setLevel(logging.DEBUG)
-
-    try:
-        ch = logging.FileHandler(args.logfile)
-    except IOError as e:
-        print >> sys.stderr, e
-        sys.exit(1)
-
-    ch.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        '%(asctime)s %(name)s - %(levelname)s - %(message)s',
-        datefmt='%b %d %H:%M:%S'
-    )
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
-
-    # Set exit return value to 0
+    # Initialize exit return value to 0
     retval = 0
 
     # Showing user flags and their values
@@ -902,7 +867,7 @@ def main():
         try:
             netscaler_tool.client.logout()
             if args.debug:
-                msg = "Logging out of NetScaler %s" % (args.host,)
+                msg = "Logging out of NetScaler %s" % args.host
                 logger.debug(msg)
                 print "\n", msg
         except RuntimeError as e:

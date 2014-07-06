@@ -13,20 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
-import sys
-
-# simplejson is used on CentOS 5, while
-# json is used on CentOS 6.
-# Trying to import json first, followed
-# by simplejson second if there is a failure
-try:
-    import json
-except ImportError:
-    try:
-        import simplejson as json
-    except ImportError, e:
-        print >> sys.stderr, e
+import json
 
 
 def print_list(list):

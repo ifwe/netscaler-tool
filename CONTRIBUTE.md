@@ -14,42 +14,42 @@
 ### Add a new top level argument, i.e. show
 1. Creating a new parser off of the main subparser
     * ```
-    parserShow = subparser.add_parser(
+    parser_show = subparser.add_parser(
         'show', help='sub-command for showing objects'
     )
     ```
 
 ### Add a new second level argument, i.e. lb-vservers
 1. Create a new subparser off of parent subparser
-    * `subparserShow = parserShow.add_subparsers(dest='subparserName')`
+    * `subparser_show = parser_show.add_subparsers(dest='subparserName')`
 1. Create parser
 
-        subparserShow.add_parser('lb-vservers', help='Shows all lb vservers')
+        subparser_show.add_parser('lb-vservers', help='Shows all lb vservers')
 
     * If the subparser will need an argument
-        -  
-        ```parserShowLbVserver.add_argument(
+        -
+        ```parser_show_lbvserver.add_argument(
             'vserver', help='Shows stats for specified vserver'
         )```
 
 1. Create new method under respective class
 
         def lbvservers(self):
-            object = ["lbvserver"]
-            listOfLbVservers = []
+            ns_object = ["lbvserver"]
+            list_of_lbvservers = []
 
             try:
-                output = self.client.get_object(object)
+                output = self.client.get_object(ns_object)
             except RuntimeError as e:
                 msg = "Problem while trying to get list of LB vservers " \
                       "on %s.\n%s" % (self.args.host, e)
                 raise RuntimeError(msg)
 
             for vserver in output['lbvserver']:
-                listOfLbVservers.append(vserver['name'])
+                list_of_lbvservers.append(vserver['name'])
 
-            utils.print_list(sorted(listOfLbVservers))
+            utils.print_list(sorted(list_of_lbvservers))
 
 ## Todo
-* Fix all camelCase instances
+* Upload to PyPI
 * Write unit tests using pytest

@@ -15,22 +15,9 @@ limitations under the License.
 """
 
 import httplib2
+import json
 import urllib
-import sys
 import socket
-
-# simplejson is used on CentOS 5, while
-# json is used on CentOS 6.
-# Trying to import json first, followed
-# by simplejson second if there is a failure
-try:
-    import json
-except ImportError:
-    try:
-        import simplejson as json
-    except ImportError, e:
-        print >> sys.stderr, e
-        sys.exit(1)
 
 
 class Client:
@@ -46,7 +33,7 @@ class Client:
 
         # set the headers and the base URL
         headers = {'Content-type': 'application/x-www-form-urlencoded'}
-        url = "https://%s/nitro/v1/config/" % (self.host)
+        url = "https://%s/nitro/v1/config/" % self.host
 
         # construct the payload with URL encoding
         payload = {"object": {"login": {"username": self.user, "password":
@@ -83,7 +70,7 @@ class Client:
 
         headers = {'Content-type': 'application/x-www-form-urlencoded',
                    'Cookie': 'sessionid='+self.session_id}
-        url = "https://%s/nitro/v1/config/" % (self.host)
+        url = "https://%s/nitro/v1/config/" % self.host
 
         # construct the payload with URL encoding
         payload = {"object": {"logout": {}}}
@@ -109,7 +96,7 @@ class Client:
 
         headers = {'Content-type': 'application/x-www-form-urlencoded',
                    'Cookie': 'sessionid='+self.session_id}
-        url = "https://%s/nitro/v1/config/" % (self.host)
+        url = "https://%s/nitro/v1/config/" % self.host
 
         properties = {
             'params': {"action": "save"},
@@ -133,7 +120,7 @@ class Client:
             msg = "\nCouldn't save config: %s" % (data["message"])
             raise RuntimeError(msg)
 
-    def get_object(self, object, *args):
+    def get_object(self, ns_object, *args):
         """
         If we get stat in our optional args list, that means we need to change
         the url to handle fetching stat objects
@@ -142,10 +129,12 @@ class Client:
                    'Cookie': 'sessionid='+self.session_id}
 
         if 'stats' in args:
-            url = "https://%s/nitro/v1/stat/%s" % (self.host, '/'.join(object))
+            url = "https://%s/nitro/v1/stat/%s" % (
+                self.host, '/'.join(ns_object)
+            )
         else:
             url = "https://%s/nitro/v1/config/%s" % (self.host,
-                                                     '/'.join(object))
+                                                     '/'.join(ns_object))
 
         if self.debug:
             print "URL: ", url
@@ -170,7 +159,7 @@ class Client:
         headers = {'Content-type': 'application/x-www-form-urlencoded',
                    'Cookie': 'sessionid='+self.session_id}
 
-        url = "https://%s/nitro/v1/config" % (self.host)
+        url = "https://%s/nitro/v1/config" % self.host
         if self.debug:
             print "URL: ", url
 
@@ -190,6 +179,6 @@ class Client:
             print "\nResponse: ", response
             print "\nContent: ", content
 
-        if response.status != 200:
+        if response.status not in [200, 201]:
             msg = "Error while modifying %s" % (object[1])
             raise RuntimeError(msg)

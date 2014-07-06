@@ -46,17 +46,17 @@ REQUIREMENTS = load_requirements('requirements.txt')
 
 setup(
     name='netscaler-tool',
-    version='1.20',
-    packages = find_packages(),
+    version='1.21',
+    packages=find_packages(),
 
-    author = "Brian Glogower",
-    author_email = "bglogower@tagged.com",
-    description = "Nitro API tool for managing NetScalers.",
-    license = "Apache v2.0",
+    author="Brian Glogower",
+    author_email="bglogower@tagged.com",
+    description="Nitro API tool for managing NetScalers.",
+    license="Apache v2.0",
     install_requires=REQUIREMENTS,
-    entry_points = {
+    entry_points={
         'console_scripts': [
             'netscaler-tool = netscalertool.netscalertool:main',
-            ]
+        ]
     },
 )

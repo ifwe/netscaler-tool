@@ -55,10 +55,10 @@ The netscaler-tool can take -h or --help optional argument at anytime:
       -h, --help            show this help message and exit
       --user USER           NetScaler user account.
       --passwd PASSWD       Password for user. Default is to fetch from
-                            netscalertool.conf.
-      --nodns               Won't try to resolve any netscaler objects.
-      --debug               Shows what's going on.
-      --dryrun              Dryrun.
+                            netscalertool.conf
+      --nodns              Won't try to resolve any NetScaler objects
+      --debug               Shows what's going on
+      --dryrun              Dryrun
 
     ./netscalertool.py 192.168.1.10 show --help
     usage: netscalertool.py NETSCALER show [-h]
