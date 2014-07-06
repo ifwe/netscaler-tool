@@ -35,7 +35,7 @@ class Base(object):
         self.args = args
 
         try:
-            self.config = self.fetch_config(args.netscaler_tool_config)
+            self.config = self.fetch_config()
         except IOError:
             raise
 
@@ -62,10 +62,10 @@ class Base(object):
         except RuntimeError:
             raise
 
-    def fetch_config(netscaler_tool_config):
+    def fetch_config(self):
         """Fetch configuration from file"""
         try:
-            f = open(netscaler_tool_config)
+            f = open(self.args.netscaler_tool_config)
         except IOError:
             raise
 
