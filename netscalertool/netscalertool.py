@@ -65,7 +65,7 @@ class Base(object):
     def fetch_config(self):
         """Fetch configuration from file"""
         try:
-            f = open(self.args.netscaler_tool_config)
+            f = open(self.args.ns_config_file)
         except IOError:
             raise
 
@@ -554,6 +554,38 @@ class Bounce(Disable, Enable):
 
 # noinspection PyBroadException
 def main():
+    ns_config_file = "/etc/netscalertool.conf"
+    log_file = "/var/log/netscaler-tool/netscaler-tool.log"
+
+    ##### Setting up logging #####
+    # Grabbing the user that is running this script for logging purposes
+    if os.getenv('SUDO_USER'):
+        user = os.getenv('SUDO_USER')
+    else:
+        user = os.getenv('USER')
+
+    try:
+        local_host = socket.gethostbyaddr(socket.gethostname())[1][0]
+    except (socket.herror, socket.gaierror):
+        local_host = 'localhost'
+    logger = logging.getLogger(local_host)
+    logger.setLevel(logging.DEBUG)
+
+    try:
+        ch = logging.FileHandler(log_file)
+    except IOError as e:
+        print >> sys.stderr, e
+        sys.exit(1)
+
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(
+        '%(asctime)s %(name)s - %(levelname)s - %(message)s',
+        datefmt='%b %d %H:%M:%S'
+    )
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+    ##### Setting up logging #####
+
     class IsPingableAction(argparse.Action):
         """
         Used by argparse to check if the NetScaler specified is pingable
@@ -575,21 +607,20 @@ def main():
 
     class AllowedToManage(argparse.Action):
         """
-        Used by argparse to checks if ns_object is allowed to be managed
+        Used by argparse to checks if NetScaler object is allowed to be managed
         """
 
         def __call__(self, parser, namespace, values, option_string=None):
-            netscaler_tool_config = namespace.netscaler_tool_config
+            ns_config_file = namespace.ns_config_file
 
             try:
-                f = open(netscaler_tool_config, 'r')
+                f = open(ns_config_file, 'r')
+                ns_config = yaml.load(f)
+                f.close()
             except IOError as e:
-                msg = "Problem with %s: %s" % (ns_config, e)
+                msg = "Problem with %s: %s" % (ns_config_file, e)
                 print >> sys.stderr, msg
                 sys.exit(1)
-
-            ns_config = yaml.load(f)
-            f.close()
 
             if namespace.subparserName == "server":
                 # Checking if specified server is allowed to be managed
@@ -602,21 +633,22 @@ def main():
                         manageable_servers = subprocess.check_output(
                             cmd.split()
                         )
-                    except subprocess.CalledProcessError as e:
-                        print >> sys.stderr, e
-                        logger.critical(e)
+                    except (OSError, subprocess.CalledProcessError) as e:
+                        msg = "Problem running %s:\n%s" % (cmd, e)
+                        print >> sys.stderr, msg
+                        logger.critical(msg)
                         sys.exit(1)
 
                     if values not in manageable_servers.split('\n'):
                         msg = "%s is not a manageable server. If you would " \
                               "like to change this, please update " \
-                              "external_nodes in %s" % (values, ns_config)
+                              "external_nodes in %s" % (values, ns_config_file)
                         print >> sys.stderr, msg
                         logger.error(msg)
                         sys.exit(1)
                 except KeyError:
                     msg = "external_nodes not set in %s. All servers are " \
-                          "allowed to be managed" % netscaler_tool_config
+                          "allowed to be managed" % ns_config_file
                     logger.info(msg)
 
             # Checking if specified vserver is allowed to be managed
@@ -625,7 +657,7 @@ def main():
                     msg = "%s is a vserver that is not allowed to be " \
                           "managed. If you would like to change this, " \
                           "please update %s." % (
-                              values, netscaler_tool_config)
+                              values, ns_config_file)
                     print >> sys.stderr, msg
                     logger.info(msg)
                     sys.exit(1)
@@ -635,8 +667,9 @@ def main():
     # Create parser
     parser = argparse.ArgumentParser()
 
-    # Set path to NetScaler tool configuration file
-    parser.set_defaults(netscaler_tool_config="/etc/netscalertool.conf")
+    # Setting some defaults
+    parser.set_defaults(ns_config_file=ns_config_file)
+    parser.set_defaults(log_file=log_file)
 
     parser.add_argument(
         "host", metavar='NETSCALER', action=IsPingableAction, help="IP or \
@@ -657,10 +690,6 @@ def main():
     )
     parser.add_argument(
         "--dryrun", action="store_true", help="Dryrun", default=False)
-    parser.add_argument("--logfile",
-                        help="Location to write logs. Defaults to "
-                             "/var/log/netscaler-tool/netscaler-tool.log",
-                        default="/var/log/netscaler-tool/netscaler-tool.log")
 
     # Creating subparser.
     subparser = parser.add_subparsers(dest='topSubparserName')

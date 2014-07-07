@@ -12,7 +12,6 @@
 ## Installation
 __Notes__:
 * Please replace __\<tag\>__ with version you wish to use
-* By default, the log file is /var/log/netscaler-tool/netscaler-tool.log, but can be changed with --logfile
 
 ### RPM Spec File
 1. Download tar.gz specific version of the repo
