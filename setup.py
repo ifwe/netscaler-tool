@@ -44,11 +44,9 @@ def load_requirements(fname):
 
 REQUIREMENTS = load_requirements('requirements.txt')
 
-long_description = open('README.md').read()
-
 setup(
     name='netscaler-tool',
-    version='1.23',
+    version='1.24',
     packages=find_packages(),
 
     author="Brian Glogower",
@@ -89,7 +87,6 @@ setup(
         'Networking',
         'NetScaler',
     ],
-    long_description=long_description,
     license="Apache v2.0",
     platforms="any",
     url="https://github.com/tagged/netscaler-tool",
