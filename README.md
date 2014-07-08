@@ -10,15 +10,18 @@
   * Depending on your use case, you might only need a system user that is read-only
 
 ## Installation
+### Pip
+1. pip install netscaler-tool
+
+### RPM Spec File
 __Notes__:
 * Please replace __\<tag\>__ with version you wish to use
 
-### RPM Spec File
 1. Download tar.gz specific version of the repo
- 1. `https://github.tagged.com/bglogower/netscaler-tool/archive/v<tag>.tar.gz`
+    1. `https://github.com/tagged/netscaler-tool/releases/tag/v<tag>.tar.gz`
 1. Use included rpm spec (python-netscalertool.spec) file and newly downloaded tar.gz file to build a rpm
- 1. tar xzvf netscaler-tool-\<tag\>.tar.gz netscaler-tool-\<tag\>/python-netscalertool.spec
- 1. http://wiki.centos.org/HowTos/SetupRpmBuildEnvironment
+    1. tar xzvf netscaler-tool-\<tag\>.tar.gz netscaler-tool-\<tag\>/python-netscalertool.spec
+    1. http://wiki.centos.org/HowTos/SetupRpmBuildEnvironment
 
 ## Configuration
 1.  Copy netscalertool.conf.example to /etc/netscalertool.conf
