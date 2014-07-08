@@ -51,5 +51,4 @@
             utils.print_list(sorted(list_of_lbvservers))
 
 ## Todo
-* Upload to PyPI
 * Write unit tests using pytest
