@@ -46,11 +46,12 @@ REQUIREMENTS = load_requirements('requirements.txt')
 
 setup(
     name='netscaler-tool',
-    version='1.21',
+    version='1.22',
     packages=find_packages(),
 
     author="Brian Glogower",
     author_email="bglogower@tagged.com",
+    url="https://github.com/tagged/netscaler-tool",
     description="Nitro API tool for managing NetScalers.",
     license="Apache v2.0",
     install_requires=REQUIREMENTS,
@@ -59,4 +60,30 @@ setup(
             'netscaler-tool = netscalertool.netscalertool:main',
         ]
     },
+    keywords=[
+        'API',
+        'Automation',
+        'library',
+        'Nitro',
+        'Networking',
+        'NetScaler',
+    ],
+    classifiers=[
+        'Development Status :: 3 - Alpha',
+        'Environment :: Console',
+        'Intended Audience :: Developers',
+        'Intended Audience :: Information Technology',
+        'Intended Audience :: System Administrators',
+        'Natural Language :: English',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python',
+        'Topic :: Internet',
+        'Topic :: Software Development',
+        'Topic :: Software Development :: Libraries :: Python Modules',
+        'Topic :: System :: Networking',
+        'Topic :: System :: Networking :: Monitoring',
+        'Topic :: System :: Operating System',
+        'Topic :: System :: Systems Administration',
+        'Topic :: Utilities',
+    ],
 )
