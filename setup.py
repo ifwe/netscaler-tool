@@ -15,9 +15,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+import sys
 
 from setuptools import setup, find_packages
-import sys
 
 PYTHON_REQ_BLACKLIST = []
 
@@ -44,32 +44,17 @@ def load_requirements(fname):
 
 REQUIREMENTS = load_requirements('requirements.txt')
 
+long_description = open('README.md').read()
+
 setup(
     name='netscaler-tool',
-    version='1.22',
+    version='1.23',
     packages=find_packages(),
 
     author="Brian Glogower",
     author_email="bglogower@tagged.com",
-    url="https://github.com/tagged/netscaler-tool",
-    description="Nitro API tool for managing NetScalers.",
-    license="Apache v2.0",
-    install_requires=REQUIREMENTS,
-    entry_points={
-        'console_scripts': [
-            'netscaler-tool = netscalertool.netscalertool:main',
-        ]
-    },
-    keywords=[
-        'API',
-        'Automation',
-        'library',
-        'Nitro',
-        'Networking',
-        'NetScaler',
-    ],
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
         'Intended Audience :: Developers',
         'Intended Audience :: Information Technology',
@@ -77,6 +62,9 @@ setup(
         'Natural Language :: English',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.6',
+        'Programming Language :: Python :: 2.7',
         'Topic :: Internet',
         'Topic :: Software Development',
         'Topic :: Software Development :: Libraries :: Python Modules',
@@ -86,4 +74,23 @@ setup(
         'Topic :: System :: Systems Administration',
         'Topic :: Utilities',
     ],
+    description="Nitro API tool for managing NetScalers.",
+    entry_points={
+        'console_scripts': [
+            'netscaler-tool = netscalertool.netscalertool:main',
+        ]
+    },
+    install_requires=REQUIREMENTS,
+    keywords=[
+        'API',
+        'Automation',
+        'library',
+        'Nitro',
+        'Networking',
+        'NetScaler',
+    ],
+    long_description=long_description,
+    license="Apache v2.0",
+    platforms="any",
+    url="https://github.com/tagged/netscaler-tool",
 )
