@@ -1,11 +1,7 @@
 # Contribute
 
-## Team members
-* Brian Glogower: System Engineer at Tagged Inc.
-
 ## Coding Style
 * PEP8
-* No camelCase, except for classes
 * Indents are 4 whitespaces
 
 ## Adding/Changing features
