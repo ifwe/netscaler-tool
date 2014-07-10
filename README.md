@@ -17,13 +17,14 @@ __Notes__
 * Don't forget to [modify](#configure) __/etc/netscalertool.conf__ after
 downloading it
 
-
+    ```
     sudo pip install netscaler-tool
     sudo mkdir -p /var/log/netscaler-tool
     sudo touch /var/log/netscaler-tool/netscaler-tool.log
     sudo chown <user>:<group> /var/log/netscaler-tool/netscaler-tool.log
     sudo chmod <mode> /var/log/netscaler-tool/netscaler-tool.log
     sudo wget -O /etc/netscalertool.conf  https://github.com/tagged/netscaler-tool/blob/master/netscalertool.conf.example
+    ```
 
 ### RPM Spec File
 __Notes__
