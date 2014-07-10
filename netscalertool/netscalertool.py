@@ -803,8 +803,8 @@ def main():
         'server', help='Disable server'
     )
     parser_disable_server.add_argument(
-        'server', action=AllowedToManage, help='Server to disable. Will \
-        actually disable all services bound to server'
+        'server', action=AllowedToManage, help='Server to disable. actually '
+        'disable all services bound to server, to utilize the graceful delay'
     )
     parser_disable_server.add_argument(
         '--delay', type=int, help='The time allowed (in seconds) for a \

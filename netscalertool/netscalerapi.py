@@ -46,7 +46,7 @@ class Client:
             response, content = http.request(url, 'POST', body=payload_encoded,
                                              headers=headers)
         except socket.error, e:
-            msg = "Problem connecting to netscaler %s:\n%s" % (self.host, e)
+            msg = "Problem connecting to NetScaler %s:\n%s" % (self.host, e)
             raise RuntimeError(msg)
 
         data = json.loads(content)
