@@ -15,7 +15,7 @@
 __Notes__
 
 * Don't forget to [modify](#configure) __/etc/netscalertool.conf__ after
-downloading it
+installation
 
     ```
     sudo pip install netscaler-tool
