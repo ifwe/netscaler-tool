@@ -11,7 +11,7 @@
   read-only permissions
 
 ## Installation
-### Pip
+### From PyPI
 __Notes__
 
 * Don't forget to [modify](#configure) __/etc/netscalertool.conf__ after
@@ -26,7 +26,7 @@ installation
     sudo wget -O /etc/netscalertool.conf  https://github.com/tagged/netscaler-tool/blob/master/netscalertool.conf.example
     ```
 
-### RPM Spec File
+### From RPM
 __Notes__
 
 * Please replace __\<tag\>__ with the version you wish to use
@@ -41,6 +41,17 @@ __Notes__
     1. `tar xzvf netscaler-tool-\<tag\>.tar.gz
     netscaler-tool-\<tag\>/python-netscalertool.spec`
     1. http://wiki.centos.org/HowTos/SetupRpmBuildEnvironment
+
+### From Source
+1. git clone https://github.com/tagged/netscaler-tool.git
+1. cd netscaler-tool
+1. sudo python setup.py install
+1. sudo mkdir -p /var/log/netscaler-tool
+1. sudo touch /var/log/netscaler-tool/netscaler-tool.log
+1. sudo chown \<user\>:\<group\> /var/log/netscaler-tool/netscaler-tool.log
+1. sudo chmod \<mode\> /var/log/netscaler-tool/netscaler-tool.log
+1. sudo cp netscalertool.conf.example /etc/netscalertool.conf
+1. Modify /etc/netscalertool.conf
 
 ## Configuration
 <a name='configure'></a> Modify __/etc/netscalertool.conf__
