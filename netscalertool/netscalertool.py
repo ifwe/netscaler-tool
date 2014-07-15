@@ -853,8 +853,7 @@ def main():
     try:
         klass = globals()[args.topSubparserName.capitalize()]
     except KeyError:
-        msg = "%s, %s is not a valid subparser." % (user,
-                                                    args.topSubparserName)
+        msg = "%s, %s is not a valid subparser." % (user, args.topSubparserName)
         print >> sys.stderr, msg
         logger.critical(msg)
         return 1
