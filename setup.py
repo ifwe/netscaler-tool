@@ -89,6 +89,5 @@ setup(
         'NetScaler',
     ],
     license="Apache v2.0",
-    platforms="any",
     url="https://github.com/tagged/netscaler-tool",
 )
