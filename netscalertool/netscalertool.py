@@ -368,35 +368,6 @@ class Show(Base):
         for cert in output['sslcertkey']:
             print "%s:%s" % (cert['certkey'], cert['daystoexpiration'])
 
-    def surgetotal(self):
-        vserver = self.args.vserver
-        surge_count_total = 0
-
-        try:
-            output = self.get_bound_services(vserver)
-        except RuntimeError as e:
-            msg = "Problem getting bound services to %s.\n%s" % (vserver, e)
-            raise RuntimeError(msg)
-
-        # Going through the list of services to get surge count.
-        for service in output:
-            try:
-                output = self.get_service_stats(service, 'surgecount')
-            except RuntimeError as e:
-                msg = "Problem getting surgecount of " \
-                      "service %s.\n%s" % (service, e)
-                raise RuntimeError(msg)
-
-            surge = int(output['surgecount'])
-            if self.args.debug:
-                print "%s: %d" % (service, surge)
-            surge_count_total += surge
-
-        if self.args.debug:
-            print "\nTotal Surge Queue Size is:"
-
-        print surge_count_total
-
     def system(self):
         mode = 'stats'
         ns_object = ["system"]
@@ -736,12 +707,6 @@ def main():
     )
     subparser_show.add_parser(
         'ssl-certs', help='Shows ssl certs and days until expiring'
-    )
-    parser_show_surge_total = subparser_show.add_parser(
-        'surge-total', help='Shows surge total for a lb vserver'
-    )
-    parser_show_surge_total.add_argument(
-        'vserver', help='Shows surge total for which lb vserver'
     )
     subparser_show.add_parser('saved-config', help='Shows saved ns config')
     subparser_show.add_parser('running-config',

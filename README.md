@@ -97,11 +97,11 @@ The netscaler-tool can take -h or --help optional argument at anytime:
     ./netscalertool.py 192.168.1.10 show --help
     usage: netscalertool.py NETSCALER show [-h]
 
-                                           {lb-vservers,lb-vserver,cs-vservers,server,servers,services,primary-node,ssl-certs,surge-total,saved-config,running-config,system}
+                                           {lb-vservers,lb-vserver,cs-vservers,server,servers,services,primary-node,ssl-certs,saved-config,running-config,system}
                                        ...
 
     positional arguments:
-      {lb-vservers,lb-vserver,cs-vservers,server,servers,services,primary-node,ssl-certs,surge-total,saved-config,running-config,system}
+      {lb-vservers,lb-vserver,cs-vservers,server,servers,services,primary-node,ssl-certs,saved-config,running-config,system}
         lb-vservers         Shows all lb vservers
         lb-vserver          Shows stat(s) of a specified lb vserver
         cs-vservers         Shows all cs vservers
@@ -110,7 +110,6 @@ The netscaler-tool can take -h or --help optional argument at anytime:
         services            Shows all services
         primary-node        Shows which of the two nodes is primary
         ssl-certs           Shows ssl certs and days until expiring
-        surge-total         Shows surge total for a lb vserver
         saved-config        Shows saved ns config
         running-config      Shows running ns config
         system              Shows system counters
