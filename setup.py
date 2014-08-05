@@ -16,6 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import sys
+import pypandoc
 
 from setuptools import setup, find_packages
 
@@ -43,10 +44,11 @@ def load_requirements(fname):
     return requirements
 
 REQUIREMENTS = load_requirements('requirements.txt')
+LONG_DESCRIPTION = pypandoc.convert('README.md', 'rst')
 
 setup(
     name='netscaler-tool',
-    version='1.27.0',
+    version='1.27.1',
     packages=find_packages(),
 
     author="Brian Glogower",
@@ -89,5 +91,6 @@ setup(
         'NetScaler',
     ],
     license="Apache v2.0",
+    long_description=LONG_DESCRIPTION,
     url="https://github.com/tagged/netscaler-tool",
 )
