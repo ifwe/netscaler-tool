@@ -17,7 +17,7 @@
 
 ### Add a new second level argument, i.e. lb-vservers
 1. Create a new subparser off of parent subparser
-    * `subparser_show = parser_show.add_subparsers(dest='subparserName')`
+    * `subparser_show = parser_show.add_subparsers(dest='subparser_name')`
 1. Create parser
 
         subparser_show.add_parser('lb-vservers', help='Shows all lb vservers')

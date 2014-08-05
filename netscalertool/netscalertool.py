@@ -24,6 +24,7 @@ import re
 import socket
 import subprocess
 import sys
+import time
 import yaml
 
 import netscalerapi
@@ -457,6 +458,8 @@ class Enable(Base):
                 raise
 
     def vserver(self):
+        debug = self.args.debug
+        sleep = self.args.sleep
         vserver = self.args.vserver
 
         properties = {
@@ -465,8 +468,13 @@ class Enable(Base):
         }
 
         try:
-            if self.args.debug:
+            if debug:
                 print "\nAttempting to enable vserver %s" % vserver
+            if sleep:
+                if debug:
+                    print "Sleeping %d seconds before enabling %s" % (sleep,
+                                                                      vserver)
+                time.sleep(sleep)
             self.client.modify_object(properties)
         except RuntimeError:
             raise
@@ -593,7 +601,7 @@ def main():
                 print >> sys.stderr, msg
                 sys.exit(1)
 
-            if namespace.subparserName == "server":
+            if namespace.subparser_name == "server":
                 # Checking if specified server is allowed to be managed
                 try:
                     cmd = ns_config["external_nodes"]
@@ -623,7 +631,7 @@ def main():
                     logger.info(msg)
 
             # Checking if specified vserver is allowed to be managed
-            elif namespace.subparserName == "vserver":
+            elif namespace.subparser_name == "vserver":
                 if values not in ns_config["manage_vservers"]:
                     msg = "%s is a vserver that is not allowed to be " \
                           "managed. If you would like to change this, " \
@@ -663,13 +671,13 @@ def main():
         "--dryrun", action="store_true", help="Dryrun", default=False)
 
     # Creating subparser.
-    subparser = parser.add_subparsers(dest='topSubparserName')
+    subparser = parser.add_subparsers(dest='top_subparser_name')
 
     # Creating show subparser.
     parser_show = subparser.add_parser(
         'show', help='sub-command for showing objects'
     )
-    subparser_show = parser_show.add_subparsers(dest='subparserName')
+    subparser_show = parser_show.add_subparsers(dest='subparser_name')
     subparser_show.add_parser('lb-vservers', help='Shows all lb vservers')
     parser_show_lbvserver = subparser_show.add_parser(
         'lb-vserver', help='Shows stat(s) of a specified lb vserver'
@@ -717,7 +725,7 @@ def main():
     parser_stat = subparser.add_parser(
         'stat', help='sub-command for showing ns_object stats'
     )
-    subparser_stat = parser_stat.add_subparsers(dest='subparserName')
+    subparser_stat = parser_stat.add_subparsers(dest='subparser_name')
     parser_stat_lb_vservers = subparser_stat.add_parser(
         'lb-vservers', help='Shows stats of all lbvservers'
     )
@@ -729,7 +737,7 @@ def main():
     parser_cmp = subparser.add_parser(
         'compare', help='sub-command for comparing objects'
     )
-    subparser_cmp = parser_cmp.add_subparsers(dest='subparserName')
+    subparser_cmp = parser_cmp.add_subparsers(dest='subparser_name')
     subparser_cmp.add_parser(
         'configs', help='Compares running and saved ns configs'
     )
@@ -743,7 +751,7 @@ def main():
     parser_enable = subparser.add_parser(
         'enable', help='sub-command for enable objects'
     )
-    subparser_enable = parser_enable.add_subparsers(dest='subparserName')
+    subparser_enable = parser_enable.add_subparsers(dest='subparser_name')
     parser_enable_server = subparser_enable.add_parser(
         'server',
         help='Enable server. Will actually enable all services bound to '
@@ -763,7 +771,7 @@ def main():
     parser_disable = subparser.add_parser(
         'disable', help='sub-command for disabling objects'
     )
-    subparser_disable = parser_disable.add_subparsers(dest='subparserName')
+    subparser_disable = parser_disable.add_subparsers(dest='subparser_name')
     parser_disable_server = subparser_disable.add_parser(
         'server', help='Disable server'
     )
@@ -786,13 +794,16 @@ def main():
     parser_bounce = subparser.add_parser(
         'bounce', help='sub-command for bouncing objects'
     )
-    subparser_bounce = parser_bounce.add_subparsers(dest='subparserName')
+    subparser_bounce = parser_bounce.add_subparsers(dest='subparser_name')
     parser_bounce_vserver = subparser_bounce.add_parser(
         'vserver', help='Bounce vserver'
     )
     parser_bounce_vserver.add_argument(
         'vserver', action=AllowedToManage, help='Vserver to bounce'
     )
+    parser_bounce_vserver.add_argument('--sleep', type=int, help='Amount of '
+                                       'time to sleep between disabling and '
+                                       'enabling vserver')
 
     # Getting arguments
     args = parser.parse_args()
@@ -812,13 +823,14 @@ def main():
         print
 
     # Getting method, based on subparser called from argparse.
-    method = args.subparserName.replace('-', '')
+    method = args.subparser_name.replace('-', '')
 
     # Getting class, based on subparser called from argparse.
     try:
-        klass = globals()[args.topSubparserName.capitalize()]
+        klass = globals()[args.top_subparser_name.capitalize()]
     except KeyError:
-        msg = "%s, %s is not a valid subparser." % (user, args.topSubparserName)
+        msg = "%s, %s is not a valid subparser." % (user,
+                                                    args.top_subparser_name)
         print >> sys.stderr, msg
         logger.critical(msg)
         return 1
@@ -847,7 +859,7 @@ def main():
             retval = 1
     finally:
         # Saving config if we run a enable or disable command
-        if args.topSubparserName in ["bounce", "disable", "enable"]:
+        if args.top_subparser_name in ["bounce", "disable", "enable"]:
             try:
                 netscaler_tool.client.save_config()
                 logger.info("Saving NetScaler config")

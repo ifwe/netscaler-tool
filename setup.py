@@ -46,7 +46,7 @@ REQUIREMENTS = load_requirements('requirements.txt')
 
 setup(
     name='netscaler-tool',
-    version='1.26.0',
+    version='1.27.0',
     packages=find_packages(),
 
     author="Brian Glogower",
