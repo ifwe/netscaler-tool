@@ -2,5 +2,5 @@ include CONTRIBUTE.md
 include LICENSE.txt
 include netscalertool.conf.example
 include python-netscalertool.spec
-include README.md
+include README.rst
 include requirements.txt

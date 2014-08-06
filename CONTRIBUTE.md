@@ -45,6 +45,3 @@
                 list_of_lbvservers.append(vserver['name'])
 
             utils.print_list(sorted(list_of_lbvservers))
-
-## Todo
-* Write unit tests using pytest
