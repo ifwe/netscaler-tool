@@ -1,3 +1,4 @@
+include CLA.txt
 include CONTRIBUTE.md
 include LICENSE.txt
 include netscalertool.conf.example

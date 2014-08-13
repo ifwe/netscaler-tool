@@ -1,11 +1,8 @@
-# Contribute
+# How to Contribute
 
 ## Coding Style
 * PEP8
 * Indents are 4 whitespaces
-
-## Adding/Changing features
-* Please send your changes as a pull request
 
 ### Add a new top level argument, i.e. show
 1. Creating a new parser off of the main subparser
