@@ -1,4 +1,7 @@
 # How to Contribute
+1. Read and complete the [Contributor License Agreement](https://github.com/tagged/netscaler-tool/blob/master/CLA.txt).
+1. When complete, email a PDF of the signed agreement to [legal@tagged.com](mailto:legal@tagged.com).
+1. Once you have received a confirmation that your signed CLA was received, contribute your code, documentation, or any other materials with a pull request.
 
 ## Coding Style
 * PEP8
@@ -6,11 +9,11 @@
 
 ### Add a new top level argument, i.e. show
 1. Creating a new parser off of the main subparser
-    * ```
-    parser_show = subparser.add_parser(
-        'show', help='sub-command for showing objects'
-    )
-    ```
+   
+   ```parser_show = subparser.add_parser(
+      'show', help='sub-command for showing objects'
+   )```
+
 
 ### Add a new second level argument, i.e. lb-vservers
 1. Create a new subparser off of parent subparser
