@@ -1,4 +1,4 @@
-netsclaler-tool
+netscaler-tool
 ===============
 
 System Requirements
