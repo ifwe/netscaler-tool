@@ -74,8 +74,6 @@ From Source
 Configuration
 -------------
 
- Modify **/etc/netscalertool.conf**
-
 1. Update **user** to a NetScaler system user
 2. Update **passwd** for the NetScaler system user
 3. (Optional)
