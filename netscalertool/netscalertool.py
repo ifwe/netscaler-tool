@@ -199,6 +199,29 @@ class Stat(Base):
                 msg = "%s is not a valid stat for lb vservers" % stat
                 raise KeyError(msg)
 
+    def ns(self):
+        stats = self.args.stats
+        ns_object = ["ns"]
+
+        try:
+            output = self.client.get_object(ns_object, "stats")
+        except RuntimeError as e:
+            msg = "Could not get stat: %s on %s" % (e, self.args.host)
+            raise RuntimeError(msg)
+
+        if stats:
+            specified_stats = {}
+            for stat in stats:
+                try:
+                    specified_stats[stat] = output['ns'][stat]
+                except KeyError:
+                    msg = "%s is not a valid stat for ns" % stat
+                    raise KeyError(msg)
+
+            output['ns'] = specified_stats
+
+        print json.dumps(output['ns'])
+
 
 class Show(Base):
     def server(self):
@@ -727,10 +750,16 @@ def main():
     )
     subparser_stat = parser_stat.add_subparsers(dest='subparser_name')
     parser_stat_lb_vservers = subparser_stat.add_parser(
-        'lb-vservers', help='Shows stats of all lbvservers'
+        'lb-vservers', help='Show one statistic of all lbvservers'
     )
     parser_stat_lb_vservers.add_argument(
         'stat', help='Select specific stat to display'
+    )
+    parser_stat_ns = subparser_stat.add_parser(
+        'ns', help='Shows statistics for NetScaler'
+    )
+    parser_stat_ns.add_argument(
+        '--stats', nargs='*', help='Select NetScaler statistics to show'
     )
 
     # Creating compare subparser.
