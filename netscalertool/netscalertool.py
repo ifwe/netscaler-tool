@@ -416,7 +416,7 @@ class Compare(Base):
     def configs(self):
         # Regex that will be used to ignore lines we know are only in saved or
         # running configs, which will always show up in a diff.
-        ignore_res = "^# Last modified|^set appfw|^set lb monitor https? HTTP"
+        ignore_res = "^# Last modified|^set appfw|^set lb monitor https? HTTP|^set cache parameter|^set ns tcpParam|^add system user|^set system user"
 
         # Parsing configs and creating new lists that exclude any lines that
         # much ignore_res.
