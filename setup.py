@@ -47,7 +47,7 @@ LONG_DESCRIPTION = open('README.rst').read()
 
 setup(
     name='netscaler-tool',
-    version='1.27.4',
+    version='1.27.5',
     packages=find_packages(),
 
     author="Brian Glogower",
