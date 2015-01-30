@@ -7,11 +7,16 @@ passwd: passwd
 
 # List of lb vservers that can be managed
 manage_vservers:
-    - vserver1
-    - vserver1
+  - vserver1
+  - vserver1
 
 # External command that returns a newline separated list of
 # hosts that are allowed to be managed. If you don't care about limiting
 # which servers can be managed, leave this value empty
 #external_nodes: /usr/local/bin/servers --env development staging
 external_nodes:
+
+#carbon:
+#  host: host.domain.com
+#  port: 2003
+#  metric_base: foo.bar

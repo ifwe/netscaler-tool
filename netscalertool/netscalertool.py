@@ -32,8 +32,9 @@ import utils
 
 
 class Base(object):
-    def __init__(self, args):
+    def __init__(self, args, logger):
         self.args = args
+        self.logger = logger
 
         try:
             self.config = self.fetch_config()
@@ -180,6 +181,57 @@ class Base(object):
     def vserver(self):
         pass
 
+    def carbon_submit(self, data):
+        """
+        Send metrics to carbon
+
+        :param data: Dictionary of data to send to carbon
+        """
+        try:
+            carbon_host = self.config['carbon']['host']
+            carbon_port = self.config['carbon']['port']
+            carbon_metric_base = self.config['carbon']['metric_base']
+            netscaler = self.args.host
+        except KeyError as exc:
+            msg = "%s is missing from the config file" % exc
+            raise RuntimeError(msg)
+
+        for key in data:
+            now = time.time()
+            metric = '%s.%s.%s' % (carbon_metric_base, netscaler.replace(
+                '.', '_'), key)
+            value = data[key]
+
+            # Is value numerical? If not, we will not send it to carbon
+            try:
+                value = float(value)
+            except ValueError:
+                msg = "Not sending metric '%s %s %d', since its value " \
+                      "is not numerical" % (metric, value, now)
+                self.logger.info(msg)
+                if self.args.debug:
+                    print msg
+                continue
+
+            # Now, we will actually try to send metrics to carbon
+            carbon_data = "%s %f %d\n" % (metric, value, now)
+            msg = "Sending %s to %s:%s" % (carbon_data, carbon_host,
+                                           carbon_port)
+            self.logger.info(msg)
+            if self.args.debug:
+                print msg
+
+            sock = socket.socket()
+            try:
+                sock.connect((carbon_host, carbon_port))
+                sock.sendall(carbon_data)
+            except socket.error as exc:
+                msg = "Problem while sending '%s' to %s: %s" % (
+                    carbon_data, carbon_host, exc)
+                raise RuntimeError(msg)
+            finally:
+                sock.close()
+
 
 class Stat(Base):
     def lbvservers(self):
@@ -194,17 +246,30 @@ class Stat(Base):
 
         for entry in output['lbvserver']:
             try:
-                print json.dumps({entry['name']: entry[stat]})
+                lb_stats = {entry['name']: entry[stat]}
             except KeyError:
                 msg = "%s is not a valid stat for lb vservers" % stat
-                raise KeyError(msg)
+                raise RuntimeError(msg)
+
+            if self.args.carbon and not self.args.dryrun:
+                carbon_stats = {}
+                for lb, value in lb_stats.items():
+                    key = 'lbvserver.%s.%s' % (stat, lb)
+                    carbon_stats[key] = value
+
+                try:
+                    self.carbon_submit(carbon_stats)
+                except RuntimeError:
+                    raise
+
+            print json.dumps(lb_stats)
 
     def ns(self):
         stats = self.args.stats
         ns_object = ["ns"]
 
         try:
-            output = self.client.get_object(ns_object, "stats")
+            stat_results = self.client.get_object(ns_object, "stats")
         except RuntimeError as e:
             msg = "Could not get stat: %s on %s" % (e, self.args.host)
             raise RuntimeError(msg)
@@ -213,14 +278,20 @@ class Stat(Base):
             specified_stats = {}
             for stat in stats:
                 try:
-                    specified_stats[stat] = output['ns'][stat]
+                    specified_stats[stat] = stat_results['ns'][stat]
                 except KeyError:
                     msg = "%s is not a valid stat for ns" % stat
                     raise KeyError(msg)
 
-            output['ns'] = specified_stats
+            stat_results['ns'] = specified_stats
 
-        print json.dumps(output['ns'])
+        if self.args.carbon and not self.args.dryrun:
+            try:
+                self.carbon_submit(stat_results['ns'])
+            except RuntimeError:
+                raise
+
+        print json.dumps(stat_results['ns'])
 
 
 class Show(Base):
@@ -400,6 +471,13 @@ class Show(Base):
             output = self.client.get_object(ns_object, mode)
         except RuntimeError:
             raise
+
+        if self.args.carbon and not self.args.dryrun:
+            try:
+                self.carbon_submit(output['system'])
+            except RuntimeError:
+                raise
+
         print json.dumps(output['system'])
 
 
@@ -693,6 +771,10 @@ def main():
     parser.add_argument(
         "--dryrun", action="store_true", help="Dryrun", default=False)
 
+    parser.add_argument(
+        "--carbon", action="store_true", help="Send metrics to carbon",
+        default=False)
+
     # Creating subparser.
     subparser = parser.add_subparsers(dest='top_subparser_name')
 
@@ -872,20 +954,19 @@ def main():
     logger.info(msg)
 
     try:
-        netscaler_tool = klass(args)
+        netscaler_tool = klass(args, logger)
     except:
         print >> sys.stderr, sys.exc_info()[1]
         logger.critical(sys.exc_info()[1])
         return 1
 
     try:
-        try:
-            getattr(netscaler_tool, method)()
-        except (AttributeError, RuntimeError, KeyError, IOError):
-            msg = "%s, %s" % (user, sys.exc_info()[1])
-            print >> sys.stderr, msg
-            logger.critical(msg)
-            retval = 1
+        getattr(netscaler_tool, method)()
+    except (AttributeError, RuntimeError, KeyError, IOError):
+        msg = "%s, %s" % (user, sys.exc_info()[1])
+        print >> sys.stderr, msg
+        logger.critical(msg)
+        retval = 1
     finally:
         # Saving config if we run a enable or disable command
         if args.top_subparser_name in ["bounce", "disable", "enable"]:
