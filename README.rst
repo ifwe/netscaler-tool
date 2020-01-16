@@ -10,7 +10,7 @@ System Requirements
 NetScaler Requirements
 ----------------------
 
--  Known to work with NS9.3 and NS10.1
+-  Known to work with NS12.1
 -  System user account that has appropriate access
 -  Depending on your use case, you might only need a system user that
    has read-only permissions

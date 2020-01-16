@@ -32,13 +32,13 @@ class Client:
         """
 
         # set the headers and the base URL
-        headers = {'Content-type': 'application/x-www-form-urlencoded'}
-        url = "https://%s/nitro/v1/config/" % self.host
+        headers = {'Content-type': 'application/json'}
+        url = "https://%s/nitro/v1/config/login" % self.host
 
         # construct the payload with URL encoding
-        payload = {"object": {"login": {"username": self.user, "password":
-                   self.passwd}}}
-        payload_encoded = urllib.urlencode(payload)
+        payload = {"login": {"username": self.user, "password":
+                   self.passwd}}
+        payload_encoded = json.dumps(payload)
 
         # create a HTTP object, and use it to submit a POST request
         http = httplib2.Http(disable_ssl_certificate_validation=True)
