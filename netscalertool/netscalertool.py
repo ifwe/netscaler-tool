@@ -567,7 +567,7 @@ def main():
         user = os.getenv('USER')
 
     try:
-        local_host = socket.gethostbyaddr(socket.gethostname())[1][0]
+        local_host = socket.gethostname().split('.')[0]
     except (socket.herror, socket.gaierror):
         local_host = 'localhost'
     logger = logging.getLogger(local_host)
