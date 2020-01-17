@@ -25,160 +25,102 @@ class Client:
         for k, v in vars(args).iteritems():
             setattr(self, k, v)
 
-    def login(self):
+
+    def _call(self, method, path, payload=None, error_message=""):
         """
-        For debug purposes, print out the headers and the content of the
-        response
+        Dedupes much of the code necessary to facilitate api requests.
         """
 
-        # set the headers and the base URL
+        url = "https://%s%s" % (self.host, path)
+
         headers = {'Content-type': 'application/json'}
-        url = "https://%s/nitro/v1/config/login" % self.host
+        if 'session_id' in dir(self):
+           headers['Cookie'] = 'sessionid='+self.session_id
 
-        # construct the payload with URL encoding
-        payload = {"login": {"username": self.user, "password":
-                   self.passwd}}
-        payload_encoded = json.dumps(payload)
+        payload_encoded = json.dumps(payload) if payload else None
 
-        # create a HTTP object, and use it to submit a POST request
         http = httplib2.Http(disable_ssl_certificate_validation=True)
         try:
-            response, content = http.request(url, 'POST', body=payload_encoded,
+            response, content = http.request(url, method, body=payload_encoded,
                                              headers=headers)
         except socket.error, e:
             msg = "Problem connecting to NetScaler %s:\n%s" % (self.host, e)
             raise RuntimeError(msg)
 
-        data = json.loads(content)
-        errorcode = data["errorcode"]
+        if len(content) > 0:
+            data = json.loads(content)
+            errorcode = data["errorcode"]
+        else:
+            data = None
+            errorcode = 0
 
         if response.status not in [200, 201] or errorcode != 0:
-            raise RuntimeError(content)
+            raise RuntimeError("%s: %s" % (error_message, content))
 
-        if self.debug:
-            print "Nitro API URL: ", url
-            print "\n", json.dumps(response)
-            print "\n", json.dumps(content)
+        return data
 
-        data = json.loads(content)
+
+    def login(self):
+        """
+        Starts a session with the netscaler.
+        """
+
+        path = "/nitro/v1/config/login"
+
+        payload = {"login": {"username": self.user, "password":
+                   self.passwd}}
+
+        data = self._call('POST', path, payload,
+                          error_message="Couldn't login")
+
         self.session_id = data["sessionid"]
+
 
     def logout(self):
         """
         Logout of the netscaler
         """
 
-        headers = {'Content-type': 'application/x-www-form-urlencoded',
-                   'Cookie': 'sessionid='+self.session_id}
-        url = "https://%s/nitro/v1/config/" % self.host
+        path = "/nitro/v1/config/logout"
 
-        # construct the payload with URL encoding
-        payload = {"object": {"logout": {}}}
-        payload_encoded = urllib.urlencode(payload)
+        payload = {"logout": {}}
 
-        # create a HTTP object, and use it to submit a POST request
-        http = httplib2.Http(disable_ssl_certificate_validation=True)
-        response, content = http.request(url, 'POST', body=payload_encoded,
-                                         headers=headers)
+        data = self._call('POST', path, payload,
+                          error_message="Couldn't logout")
 
-        # getting the errorcode to see if there was a problem
-        error = json.loads(content)['errorcode']
-
-        if error != 0:
-            data = json.loads(content)
-            msg = "\nCouldn't logout: %s" % (data["message"])
-            raise RuntimeError(msg)
 
     def save_config(self):
         """
         Save netscaler config
         """
 
-        headers = {'Content-type': 'application/x-www-form-urlencoded',
-                   'Cookie': 'sessionid='+self.session_id}
-        url = "https://%s/nitro/v1/config/" % self.host
+        path = "/nitro/v1/config/"
 
-        properties = {
-            'params': {"action": "save"},
-            "nsconfig": {}
-        }
+        payload = {'params': {"action": "save"}, "nsconfig": {}}
 
-        # construct the payload with URL encoding
-        payload = {"object": properties}
-        payload_encoded = urllib.urlencode(payload)
+        self._call('POST', path, payload,
+                   error_message="Couldn't save config")
 
-        # create a HTTP object, and use it to submit a POST request
-        http = httplib2.Http(disable_ssl_certificate_validation=True)
-        response, content = http.request(url, 'POST', body=payload_encoded,
-                                         headers=headers)
-
-        # getting the errorcode to see if there was a problem
-        error = json.loads(content)['errorcode']
-
-        if error != 0:
-            data = json.loads(content)
-            msg = "\nCouldn't save config: %s" % (data["message"])
-            raise RuntimeError(msg)
 
     def get_object(self, ns_object, *args):
         """
         If we get stat in our optional args list, that means we need to change
         the url to handle fetching stat objects
         """
-        headers = {'Content-type': 'application/x-www-form-urlencoded',
-                   'Cookie': 'sessionid='+self.session_id}
 
         if 'stats' in args:
-            url = "https://%s/nitro/v1/stat/%s" % (
-                self.host, '/'.join(ns_object)
-            )
+            path = "/nitro/v1/stat/%s" % ('/'.join(ns_object))
         else:
-            url = "https://%s/nitro/v1/config/%s" % (self.host,
-                                                     '/'.join(ns_object))
+            path = "/nitro/v1/config/%s" % ('/'.join(ns_object))
 
-        if self.debug:
-            print "URL: ", url
-
-        #create a HTTP object, and use it to submit a GET request
-        http = httplib2.Http(disable_ssl_certificate_validation=True)
-        response, content = http.request(url, 'GET', headers=headers)
-
-        if self.debug:
-            print "\nResponse: ", response
-            print "\nContent: ", content
-
-        data = json.loads(content)
-        errorcode = data["errorcode"]
-
-        if response.status != 200 or errorcode != 0:
-            raise RuntimeError(content)
+        data = self._call('GET', path,
+                          error_message="Couldn't Get object")
 
         return data
 
     def modify_object(self, properties):
-        headers = {'Content-type': 'application/x-www-form-urlencoded',
-                   'Cookie': 'sessionid='+self.session_id}
 
-        url = "https://%s/nitro/v1/config" % self.host
-        if self.debug:
-            print "URL: ", url
+        path = "/nitro/v1/config"
 
-        # construct the payload with URL encoding
-        payload = {"object": properties}
-        payload_encoded = urllib.urlencode(payload)
-        if self.debug:
-            print "Payload: ", payload
-            print "Payload Encoded: ", payload_encoded
-
-        # create a HTTP object, and use it to submit a PUT request
-        http = httplib2.Http(disable_ssl_certificate_validation=True)
-        response, content = http.request(url, 'POST', body=payload_encoded,
-                                         headers=headers)
-
-        if self.debug:
-            print "\nResponse: ", response
-            print "\nContent: ", content
-
-        if response.status not in [200, 201]:
-            msg = "Error while modifying %s" % (object[1])
-            raise RuntimeError(msg)
+        data = self._call('POST', path, properties,
+                          error_message="Couldn't Modify object")
