@@ -94,9 +94,9 @@ class Client:
         Save netscaler config
         """
 
-        path = "/nitro/v1/config/"
+        path = "/nitro/v1/config/nsconfig?action=save"
 
-        payload = {'params': {"action": "save"}, "nsconfig": {}}
+        payload = {"nsconfig": {}}
 
         self._call('POST', path, payload,
                    error_message="Couldn't save config")
@@ -118,9 +118,18 @@ class Client:
 
         return data
 
-    def modify_object(self, properties):
 
-        path = "/nitro/v1/config"
+    def enable_object(self, ns_object, properties):
+
+        path = "/nitro/v1/config/%s?action=enable" % (ns_object)
 
         data = self._call('POST', path, properties,
-                          error_message="Couldn't Modify object")
+                          error_message="Couldn't enable object")
+
+
+    def disable_object(self, ns_object, properties):
+
+        path = "/nitro/v1/config/%s?action=disable" % (ns_object)
+
+        data = self._call('POST', path, properties,
+                           error_message="Couldn't disable object")

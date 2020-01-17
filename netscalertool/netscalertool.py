@@ -469,14 +469,13 @@ class Enable(Base):
 
         for service in services:
             properties = {
-                'params': {'action': "enable"},
                 'service': {'name': str(service)},
             }
 
             try:
                 if self.args.debug:
                     print "\nAttempting to enable service %s" % service
-                self.client.modify_object(properties)
+                self.client.enable_object('service', properties)
             except RuntimeError:
                 raise
 
@@ -486,7 +485,6 @@ class Enable(Base):
         vserver = self.args.vserver
 
         properties = {
-            'params': {'action': "enable"},
             'vserver': {'name': str(vserver)},
         }
 
@@ -498,7 +496,7 @@ class Enable(Base):
                     print "Sleeping %d seconds before enabling %s" % (sleep,
                                                                       vserver)
                 time.sleep(sleep)
-            self.client.modify_object(properties)
+            self.client.enable_object('vserver', properties)
         except RuntimeError:
             raise
 
@@ -516,7 +514,6 @@ class Disable(Base):
 
         for service in services:
             properties = {
-                'params': {'action': "disable"},
                 'service': {
                     'name': str(service),
                     'delay': delay,
@@ -527,7 +524,7 @@ class Disable(Base):
             try:
                 if self.args.debug:
                     print "\nAttempting to disable service %s" % service
-                self.client.modify_object(properties)
+                self.client.disable_object('service', properties)
             except RuntimeError:
                 raise
 
@@ -535,14 +532,13 @@ class Disable(Base):
         vserver = self.args.vserver
 
         properties = {
-            'params': {'action': "disable"},
             'vserver': {'name': str(vserver)},
         }
 
         try:
             if self.args.debug:
                 print "\nAttempting to disable vserver %s" % vserver
-            self.client.modify_object(properties)
+            self.client.disable_object('vserver', properties)
         except RuntimeError:
             raise
 
