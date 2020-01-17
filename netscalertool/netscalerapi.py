@@ -26,10 +26,12 @@ class Client:
             setattr(self, k, v)
 
 
-    def _call(self, method, url, payload=None, error_message=""):
+    def _call(self, method, path, payload=None, error_message=""):
         """
         Dedupes much of the code necessary to facilitate api requests.
         """
+
+        url = "https://%s%s" % (self.host, path)
 
         headers = {'Content-type': 'application/json'}
         if 'session_id' in dir(self):
@@ -45,13 +47,12 @@ class Client:
             msg = "Problem connecting to NetScaler %s:\n%s" % (self.host, e)
             raise RuntimeError(msg)
 
-        data = json.loads(content)
-        errorcode = 0
-
-        try:
+        if len(content) > 0:
+            data = json.loads(content)
             errorcode = data["errorcode"]
-        except:
-            print "Errorcode not found in response!"
+        else:
+            data = None
+            errorcode = 0
 
         if response.status not in [200, 201] or errorcode != 0:
             raise RuntimeError("%s: %s" % (error_message, content))
@@ -64,13 +65,13 @@ class Client:
         Starts a session with the netscaler.
         """
 
-        url = "https://%s/nitro/v1/config/login" % self.host
+        path = "/nitro/v1/config/login"
 
         payload = {"login": {"username": self.user, "password":
                    self.passwd}}
 
-        data = self._call('POST', url, payload,
-                          error_message="\nCouldn't login")
+        data = self._call('POST', path, payload,
+                          error_message="Couldn't login")
 
         self.session_id = data["sessionid"]
 
@@ -80,12 +81,12 @@ class Client:
         Logout of the netscaler
         """
 
-        url = "https://%s/nitro/v1/config/logout" % self.host
+        path = "/nitro/v1/config/logout"
 
         payload = {"logout": {}}
 
-        data = self._call('POST', url, payload,
-                          error_message="\nCouldn't logout")
+        data = self._call('POST', path, payload,
+                          error_message="Couldn't logout")
 
 
     def save_config(self):
@@ -93,12 +94,12 @@ class Client:
         Save netscaler config
         """
 
-        url = "https://%s/nitro/v1/config/" % self.host
+        path = "/nitro/v1/config/"
 
         payload = {'params': {"action": "save"}, "nsconfig": {}}
 
-        self._call('POST', url, payload,
-                   error_message="\nCouldn't save config")
+        self._call('POST', path, payload,
+                   error_message="Couldn't save config")
 
 
     def get_object(self, ns_object, *args):
@@ -108,21 +109,18 @@ class Client:
         """
 
         if 'stats' in args:
-            url = "https://%s/nitro/v1/stat/%s" % (
-                self.host, '/'.join(ns_object)
-            )
+            path = "/nitro/v1/stat/%s" % ('/'.join(ns_object))
         else:
-            url = "https://%s/nitro/v1/config/%s" % (self.host,
-                                                     '/'.join(ns_object))
+            path = "/nitro/v1/config/%s" % ('/'.join(ns_object))
 
-        data = self._call('GET', url,
-                          error_message="\nCouldn't Get object")
+        data = self._call('GET', path,
+                          error_message="Couldn't Get object")
 
         return data
 
     def modify_object(self, properties):
 
-        url = "https://%s/nitro/v1/config" % self.host
+        path = "/nitro/v1/config"
 
-        data = self._call('POST', url, properties,
-                          error_message="\nCouldn't Modify object")
+        data = self._call('POST', path, properties,
+                          error_message="Couldn't Modify object")
