@@ -596,11 +596,6 @@ def main():
                 stderr=subprocess.PIPE
             )
 
-            if process != 0:
-                msg = "%s is not alive." % values
-                print >> sys.stderr, msg
-                return sys.exit(1)
-
             setattr(namespace, self.dest, values)
 
     class AllowedToManage(argparse.Action):
