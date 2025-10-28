@@ -1,7 +1,7 @@
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 
 Name:           python-netscaler-tool
-Version:        1.25.1
+Version:        1.28.0
 Release:        1%{?dist}
 Summary:        Managed Citrix NetScaler using Nitro API
 Source0:        netscaler-tool-%{version}.tar.gz
