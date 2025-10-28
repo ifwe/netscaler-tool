@@ -22,6 +22,7 @@ import socket
 
 class Client:
     def __init__(self, args):
+        self.api_timeout = 10;
         for k, v in vars(args).iteritems():
             setattr(self, k, v)
 
@@ -39,7 +40,7 @@ class Client:
 
         payload_encoded = json.dumps(payload) if payload else None
 
-        http = httplib2.Http(disable_ssl_certificate_validation=True)
+        http = httplib2.Http(disable_ssl_certificate_validation=True, timeout=self.api_timeout)
         try:
             response, content = http.request(url, method, body=payload_encoded,
                                              headers=headers)

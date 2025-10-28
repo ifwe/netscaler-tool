@@ -673,6 +673,9 @@ def main():
         "host", metavar='NETSCALER', action=IsPingableAction, help="IP or \
         DNS name of NetScaler"
     )
+    parser.add_argument(
+        "--api-timeout", help="HTTP API Timeout (seconds)", type=float, default=10,
+    )
     parser.add_argument("--user", help="NetScaler user account")
     parser.add_argument(
         "--passwd", dest="passwd", help="Password for user. Default is to \
